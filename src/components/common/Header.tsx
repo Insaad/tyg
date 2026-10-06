@@ -72,19 +72,19 @@ export const Header: React.FC = () => {
             </button>
           </div>
 
-          {/* Center Zone: ASHRAFI BRIDAL STUDIO (Perfect Absolute Center) */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-auto">
+          {/* Center Zone: ASHRAFI BRIDAL STUDIO (Perfect Absolute Center & Responsive on Mobile & Desktop) */}
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-auto max-w-[calc(100%-120px)] sm:max-w-none">
             <button
               onClick={() => navigateTo('home')}
-              className="group flex flex-col items-center focus:outline-none py-1"
+              className="group flex flex-col items-center focus:outline-none py-1 max-w-full"
             >
               <span
-                className="text-lg sm:text-2xl md:text-3xl font-display tracking-[0.22em] uppercase font-medium text-[#1A1816] group-hover:text-[#9E7B3B] transition-colors whitespace-nowrap"
+                className="text-[12px] min-[380px]:text-[13.5px] min-[420px]:text-[15px] sm:text-xl md:text-2xl lg:text-[27px] font-display tracking-[0.12em] min-[380px]:tracking-[0.16em] sm:tracking-[0.22em] lg:tracking-[0.25em] uppercase font-medium text-[#1A1816] group-hover:text-[#9E7B3B] transition-colors whitespace-nowrap"
                 style={{ fontFamily: 'Cinzel, serif' }}
               >
                 ASHRAFI BRIDAL STUDIO
               </span>
-              <span className="text-[8px] sm:text-[9px] tracking-[0.38em] uppercase text-[#8C7E70] font-sans font-light -mt-0.5">
+              <span className="text-[7px] sm:text-[9px] tracking-[0.22em] sm:tracking-[0.38em] uppercase text-[#8C7E70] font-sans font-light -mt-0.5 whitespace-nowrap">
                 HAUTE COUTURE · KARACHI
               </span>
             </button>

@@ -359,3 +359,229 @@ export const extractSpreadsheetId = (urlOrId: string): string => {
   }
   return urlOrId.trim();
 };
+
+/**
+ * Parses standard CSV text (including quoted cells and multi-line values).
+ */
+export const parseCSV = (text: string): string[][] => {
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentCell = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        currentCell += '"';
+        i++;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+    } else if (char === ',' && !insideQuotes) {
+      currentRow.push(currentCell.trim());
+      currentCell = '';
+    } else if ((char === '\r' || char === '\n') && !insideQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      currentRow.push(currentCell.trim());
+      if (currentRow.some((c) => c.length > 0)) {
+        rows.push(currentRow);
+      }
+      currentRow = [];
+      currentCell = '';
+    } else {
+      currentCell += char;
+    }
+  }
+
+  if (currentCell || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some((c) => c.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+};
+
+/**
+ * Fetches products from any public or "Anyone with the link can view" Google Sheet directly.
+ * ZERO OAuth or Firebase login required — works on GitHub Pages, Netlify, AI Studio, everywhere!
+ */
+export const fetchPublicCatalogFromSpreadsheet = async (
+  spreadsheetId: string
+): Promise<SpreadsheetCatalogResult> => {
+  const cleanId = extractSpreadsheetId(spreadsheetId);
+  if (!cleanId) throw new Error('Invalid Spreadsheet ID');
+
+  // Try gviz endpoint first (supports named sheet=Products)
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=Products`;
+  const exportUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv`;
+
+  let csvText = '';
+  try {
+    const res = await fetch(gvizUrl);
+    if (res.ok) {
+      const text = await res.text();
+      if (!text.includes('<!DOCTYPE html>') && text.trim().length > 0) {
+        csvText = text;
+      }
+    }
+  } catch (e) {
+    console.warn('gviz endpoint failed, trying export endpoint', e);
+  }
+
+  if (!csvText) {
+    const res = await fetch(exportUrl);
+    if (!res.ok) {
+      throw new Error(
+        `Could not access Google Sheet. Please make sure your sheet is set to "Anyone with the link can view" (in Google Sheets click Share > Anyone with the link).`
+      );
+    }
+    const text = await res.text();
+    if (text.includes('<!DOCTYPE html>') || text.includes('accounts.google.com')) {
+      throw new Error(
+        `Permission denied: Please open your Google Sheet, click "Share" at top right, and choose "Anyone with the link can view".`
+      );
+    }
+    csvText = text;
+  }
+
+  const rows = parseCSV(csvText);
+  if (rows.length < 2) {
+    throw new Error('Spreadsheet appears empty or has no product rows.');
+  }
+
+  const rawHeaders = rows[0].map((h) => h.toLowerCase().trim());
+  const dataRows = rows.slice(1);
+
+  const getIdx = (name: string, fallbackIdx: number) => {
+    const idx = rawHeaders.indexOf(name.toLowerCase());
+    return idx !== -1 ? idx : fallbackIdx;
+  };
+
+  const idIdx = getIdx('id', 0);
+  const titleIdx = rawHeaders.indexOf('title') !== -1 ? rawHeaders.indexOf('title') : getIdx('name', 1);
+  const catIdx = getIdx('category', 2);
+  const catNameIdx = getIdx('category_name', 3);
+  const priceIdx = getIdx('price', 4);
+  const origPriceIdx = getIdx('original_price', 5);
+  const imgIdx = getIdx('image', 6);
+  const secImgIdx = getIdx('secondary_image', 7);
+  const fabricIdx = getIdx('fabric', 8);
+  const embIdx = getIdx('embroidery', 9);
+  const piecesIdx = getIdx('pieces', 10);
+  const leadIdx = getIdx('lead_time', 11);
+  const statusIdx = getIdx('status', 12);
+  const featIdx = getIdx('featured', 13);
+  const bestIdx = getIdx('bestseller', 14);
+  const newIdx = getIdx('new_arrival', 15);
+  const descIdx = getIdx('description', 16);
+
+  const cleanNum = (val: any) => {
+    if (!val) return 0;
+    const cleaned = val.toString().replace(/[^0-9.]/g, '');
+    return Number(cleaned) || 0;
+  };
+
+  const isTruth = (val: any) => {
+    if (!val) return false;
+    const s = val.toString().toUpperCase().trim();
+    return s === 'TRUE' || s === 'YES' || s === '1';
+  };
+
+  const parsedProducts: Product[] = dataRows
+    .filter((r) => r && r[titleIdx] && r[titleIdx].trim() !== '')
+    .map((r, index) => {
+      const id = r[idIdx]?.trim() || `prod-${index + 1}`;
+      const name = r[titleIdx]?.trim() || 'Bridal Masterpiece';
+      const category = (r[catIdx]?.trim() || 'nikah') as CategoryId;
+      const categoryName = r[catNameIdx]?.trim() || 'Bridal Collection';
+
+      const price = cleanNum(r[priceIdx]) || 150000;
+      const originalPrice = r[origPriceIdx] ? cleanNum(r[origPriceIdx]) : undefined;
+      const image = r[imgIdx]?.trim() || '/images/nikah_ivory_couture_1791159230888.jpg';
+      const secondaryImage = r[secImgIdx]?.trim() || undefined;
+      const fabric = r[fabricIdx]?.trim() || 'Pure Raw Silk';
+      const embroidery = r[embIdx]?.trim() || 'Handcrafted Zardozi & Tilla Work';
+      const pieces = r[piecesIdx]?.trim() || '3-Piece Ensemble';
+      const leadTime = r[leadIdx]?.trim() || '6 to 8 Weeks';
+      const status = (r[statusIdx]?.trim() || 'Made to Order') as 'Made to Order' | 'Stitched' | 'Unstitched';
+
+      return {
+        id,
+        name,
+        category,
+        categoryName,
+        price,
+        originalPrice,
+        image,
+        secondaryImage,
+        fabric,
+        embroidery,
+        pieces,
+        leadTime,
+        status,
+        isFeatured: isTruth(r[featIdx]),
+        isBestseller: isTruth(r[bestIdx]),
+        isNewArrival: isTruth(r[newIdx]),
+        description: r[descIdx]?.trim() || 'Bespoke bridal couture handcrafted in Karachi atelier.',
+        colors: ['As Shown in Lookbook', 'Custom Dye Swatch Option'],
+        details: [
+          `${fabric} with handcrafted needlework`,
+          `${embroidery} with authentic dabka and crystals`,
+          'Tailored with 3-inch seam margins for fitting adjustments',
+          'Insured worldwide delivery with tracking',
+        ],
+      };
+    });
+
+  return {
+    products: parsedProducts,
+    categories: Object.values(CATEGORY_THEMES),
+  };
+};
+
+/**
+ * Generates ready-to-paste CSV text of all demo products so the user can easily paste it into Google Sheets.
+ */
+export const generateDemoProductsCsv = (): string => {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const toFullImageUrl = (path: string) => {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    const resolved = getAssetUrl(path);
+    return resolved.startsWith('http') ? resolved : `${origin}${resolved.startsWith('/') ? '' : '/'}${resolved}`;
+  };
+
+  const rows = [
+    PRODUCT_SHEET_HEADERS.join(','),
+    ...PRODUCTS.map((p) =>
+      [
+        `"${p.id}"`,
+        `"${p.name.replace(/"/g, '""')}"`,
+        `"${p.category}"`,
+        `"${p.categoryName}"`,
+        p.price,
+        p.originalPrice || '',
+        `"${toFullImageUrl(p.image)}"`,
+        p.secondaryImage ? `"${toFullImageUrl(p.secondaryImage)}"` : '""',
+        `"${p.fabric.replace(/"/g, '""')}"`,
+        `"${p.embroidery.replace(/"/g, '""')}"`,
+        `"${p.pieces}"`,
+        `"${p.leadTime}"`,
+        `"${p.status}"`,
+        p.isFeatured ? 'TRUE' : 'FALSE',
+        p.isBestseller ? 'TRUE' : 'FALSE',
+        p.isNewArrival ? 'TRUE' : 'FALSE',
+        `"${p.description.replace(/"/g, '""')}"`,
+      ].join(',')
+    ),
+  ];
+
+  return rows.join('\n');
+};
+

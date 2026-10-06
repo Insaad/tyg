@@ -62,6 +62,12 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       // User closed or cancelled popup window; exit gracefully
       return null;
     }
+    if (error?.code === 'auth/unauthorized-domain') {
+      const host = typeof window !== 'undefined' ? window.location.hostname : 'this domain';
+      throw new Error(
+        `Firebase Error: "${host}" is not added to Firebase Authorized Domains. Use the "Direct Google Sheet ID" option below which works instantly without sign-in!`
+      );
+    }
     console.error('Google Sign In error:', error);
     throw error;
   } finally {

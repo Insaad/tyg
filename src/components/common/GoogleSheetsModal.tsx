@@ -12,7 +12,10 @@ import {
   TableProperties,
   Database,
   ArrowRight,
+  Copy,
+  Download,
 } from 'lucide-react';
+import { generateDemoProductsCsv } from '../../services/googleSheets';
 
 export const GoogleSheetsModal: React.FC = () => {
   const {
@@ -35,6 +38,7 @@ export const GoogleSheetsModal: React.FC = () => {
 
   const [inputUrl, setInputUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [csvCopied, setCsvCopied] = useState(false);
 
   if (!isGoogleSheetsOpen) return null;
 
@@ -42,6 +46,13 @@ export const GoogleSheetsModal: React.FC = () => {
     e.preventDefault();
     if (!inputUrl.trim()) return;
     handleConnectExistingSheet(inputUrl.trim());
+  };
+
+  const handleCopyDemoCsv = () => {
+    const csv = generateDemoProductsCsv();
+    navigator.clipboard.writeText(csv);
+    setCsvCopied(true);
+    setTimeout(() => setCsvCopied(false), 2500);
   };
 
   const copyUrl = () => {
@@ -258,6 +269,22 @@ export const GoogleSheetsModal: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Quick Demo Data Copy Box */}
+            <div className="p-3 bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div>
+                <span className="font-semibold text-[#1A1816] block">Need the Demo Products for your Google Sheet?</span>
+                <span className="text-[#706456] text-[11px]">Copy the complete demo products CSV table and paste it directly into cell A1 of your Google Sheet.</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyDemoCsv}
+                className="px-3.5 py-1.5 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] font-semibold text-xs transition-colors flex items-center gap-1.5 shrink-0 shadow-2xs"
+              >
+                <Copy className="w-3.5 h-3.5 text-[#9E7B3B]" />
+                <span>{csvCopied ? 'Copied to Clipboard!' : 'Copy Demo CSV Data'}</span>
+              </button>
+            </div>
           </div>
 
           {/* 3. Instructions & Columns Guide */}

@@ -13,6 +13,7 @@ import {
 import {
   createCatalogSpreadsheet,
   fetchCatalogFromSpreadsheet,
+  fetchPublicCatalogFromSpreadsheet,
   findExistingCatalogSpreadsheet,
   extractSpreadsheetId,
 } from '../services/googleSheets';
@@ -316,6 +317,23 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return `${BOUTIQUE_INFO.whatsappUrl}?text=${encoded}`;
   };
 
+  // Background startup sync if hardcoded or stored spreadsheet ID exists
+  useEffect(() => {
+    const targetId = ADMIN_CONFIG.catalogSpreadsheetId || localStorage.getItem('ashrafi_sheet_id');
+    if (targetId) {
+      fetchPublicCatalogFromSpreadsheet(targetId)
+        .then((res) => {
+          if (res.products && res.products.length > 0) {
+            setProducts(res.products);
+            localStorage.setItem('ashrafi_products_catalog', JSON.stringify(res.products));
+          }
+        })
+        .catch(() => {
+          // Keep local products on network/permission error
+        });
+    }
+  }, []);
+
   // Google Sheets Actions
   const handleGoogleSignIn = async () => {
     try {
@@ -378,23 +396,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleSyncFromSheets = async () => {
-    if (!spreadsheetId) {
-      setSheetsError("Please connect or create your 'catalog' spreadsheet first.");
+    const targetId = spreadsheetId || ADMIN_CONFIG.catalogSpreadsheetId;
+    if (!targetId) {
+      setSheetsError("Please connect or enter your 'catalog' spreadsheet ID first.");
       return;
     }
 
-    let token = await getAccessToken();
-    if (!token) {
-      const signinRes = await googleSignIn();
-      if (!signinRes) return;
-      setGoogleUser(signinRes.user);
-      token = signinRes.accessToken;
+    setIsSyncingSheets(true);
+    setSheetsError(null);
+
+    // 1. Try public/shared sheet fetch first (Zero login / works on GitHub Pages without domain auth!)
+    try {
+      const publicResult = await fetchPublicCatalogFromSpreadsheet(targetId);
+      if (publicResult.products.length > 0) {
+        setProducts(publicResult.products);
+        localStorage.setItem('ashrafi_products_catalog', JSON.stringify(publicResult.products));
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setLastSyncedAt(timeStr);
+        localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+        setIsSyncingSheets(false);
+        return;
+      }
+    } catch (pubErr) {
+      // Fall through to OAuth attempt
     }
 
+    // 2. Fallback to OAuth if sheet is strictly private
     try {
-      setIsSyncingSheets(true);
-      setSheetsError(null);
-      const result = await fetchCatalogFromSpreadsheet(token, spreadsheetId);
+      let token = await getAccessToken();
+      if (!token) {
+        const signinRes = await googleSignIn();
+        if (!signinRes) {
+          setIsSyncingSheets(false);
+          return;
+        }
+        setGoogleUser(signinRes.user);
+        token = signinRes.accessToken;
+      }
+
+      const result = await fetchCatalogFromSpreadsheet(token, targetId);
       if (result.products.length > 0) {
         setProducts(result.products);
         localStorage.setItem('ashrafi_products_catalog', JSON.stringify(result.products));
@@ -408,7 +448,10 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
     } catch (err: any) {
       console.error(err);
-      setSheetsError(err?.message || 'Failed to sync catalog from Google Sheet.');
+      setSheetsError(
+        err?.message ||
+          "Could not sync from Google Sheet. Make sure the sheet is shared as 'Anyone with the link can view' (File > Share > Anyone with the link)."
+      );
     } finally {
       setIsSyncingSheets(false);
     }
@@ -421,38 +464,56 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    let token = await getAccessToken();
-    if (!token) {
-      const signinRes = await googleSignIn();
-      if (!signinRes) return;
-      setGoogleUser(signinRes.user);
-      token = signinRes.accessToken;
+    setIsSyncingSheets(true);
+    setSheetsError(null);
+
+    const url = `https://docs.google.com/spreadsheets/d/${cleanId}/edit`;
+    setSpreadsheetId(cleanId);
+    setSpreadsheetUrl(url);
+    localStorage.setItem('ashrafi_sheet_id', cleanId);
+    localStorage.setItem('ashrafi_sheet_url', url);
+
+    // 1. Try public fetch directly (no login needed!)
+    try {
+      const publicResult = await fetchPublicCatalogFromSpreadsheet(cleanId);
+      if (publicResult.products.length > 0) {
+        setProducts(publicResult.products);
+        localStorage.setItem('ashrafi_products_catalog', JSON.stringify(publicResult.products));
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setLastSyncedAt(timeStr);
+        localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+        setIsSyncingSheets(false);
+        return;
+      }
+    } catch (pubErr) {
+      // Fall through to OAuth
     }
 
     try {
-      setIsSyncingSheets(true);
-      setSheetsError(null);
+      let token = await getAccessToken();
+      if (!token) {
+        const signinRes = await googleSignIn();
+        if (!signinRes) {
+          setIsSyncingSheets(false);
+          return;
+        }
+        setGoogleUser(signinRes.user);
+        token = signinRes.accessToken;
+      }
+
       const result = await fetchCatalogFromSpreadsheet(token, cleanId);
-
-      const url = `https://docs.google.com/spreadsheets/d/${cleanId}/edit`;
-      setSpreadsheetId(cleanId);
-      setSpreadsheetUrl(url);
-      localStorage.setItem('ashrafi_sheet_id', cleanId);
-      localStorage.setItem('ashrafi_sheet_url', url);
-
       if (result.products.length > 0) {
         setProducts(result.products);
         localStorage.setItem('ashrafi_products_catalog', JSON.stringify(result.products));
       }
-      if (result.categories.length > 0) {
-        setCategories(result.categories);
-      }
-
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       setLastSyncedAt(timeStr);
       localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
     } catch (err: any) {
-      setSheetsError(err?.message || 'Could not connect to that Google Sheet. Ensure the sheet has tabs named Products.');
+      setSheetsError(
+        err?.message ||
+          "Could not connect to that Google Sheet. Make sure the sheet is shared as 'Anyone with the link can view' (in Google Sheets click Share > Anyone with the link)."
+      );
     } finally {
       setIsSyncingSheets(false);
     }

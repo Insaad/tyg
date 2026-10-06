@@ -8,7 +8,7 @@ export const ADMIN_CONFIG = {
    * Spreadsheet ID here (e.g. '1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms').
    * If left blank, it uses the sheet connected in the Admin Panel or local catalog.
    */
-  catalogSpreadsheetId: '',
+  catalogSpreadsheetId: '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck',
 
   /**
    * Secret URL parameter to access the admin Google Sheets panel.

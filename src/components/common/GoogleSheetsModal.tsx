@@ -109,166 +109,92 @@ export const GoogleSheetsModal: React.FC = () => {
             </div>
           )}
 
-          {/* 1. Google Account Connection Card */}
-          <div className="p-4 bg-[#FAF8F5] border border-[#ECE6DE] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {/* 1. Zero-Login Sync Status Banner */}
+          <div className="p-4 bg-emerald-50/60 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-[10px] uppercase tracking-widest text-[#9E7B3B] font-semibold block mb-0.5">
-                STEP 1 · GOOGLE ACCOUNT
-              </span>
-              {googleUser ? (
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span className="text-xs font-medium text-[#1A1816]">
-                    Connected as {googleUser.displayName || googleUser.email}
-                  </span>
-                </div>
-              ) : (
-                <p className="text-xs text-[#52483D]">
-                  Sign in with your Google account to grant access to Google Sheets & Google Drive.
-                </p>
-              )}
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs uppercase tracking-widest font-bold text-emerald-900">
+                  AUTOMATED SYNC · NO SIGN-IN REQUIRED
+                </span>
+              </div>
+              <p className="text-xs text-emerald-800 leading-relaxed">
+                The website syncs directly with your Google Sheet whenever the page loads. Customers and visitors do not need any login or account.
+              </p>
             </div>
-
-            {googleUser ? (
-              <button
-                onClick={handleGoogleLogout}
-                className="px-3.5 py-1.5 text-xs text-[#706456] hover:text-[#1A1816] hover:bg-white border border-[#E0D8CB] transition-colors self-start sm:self-auto"
-              >
-                Sign Out
-              </button>
-            ) : (
-              <button
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleConnecting}
-                className="gsi-material-button px-4 py-2 bg-white border border-[#D5CDBC] hover:border-[#1A1816] shadow-2xs hover:shadow-xs transition-all flex items-center gap-2.5 text-xs font-semibold text-[#1A1816] disabled:opacity-50"
-              >
-                <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-                </svg>
-                <span>{isGoogleConnecting ? 'Connecting...' : 'Sign in with Google'}</span>
-              </button>
-            )}
+            <button
+              onClick={handleSyncFromSheets}
+              disabled={isSyncingSheets}
+              className="px-4 py-2 bg-[#1A1816] hover:bg-emerald-700 text-white font-semibold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shrink-0 shadow-2xs disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+              <span>{isSyncingSheets ? 'Syncing...' : 'Sync Now'}</span>
+            </button>
           </div>
 
           {/* 2. Connected Spreadsheet Card */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest text-[#9E7B3B] font-semibold">
-                STEP 2 · SPREADSHEET (NAMED "CATALOG")
+                CONNECTED GOOGLE SHEET
               </span>
-              {spreadsheetId && (
-                <span className="text-[11px] text-emerald-700 font-semibold flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Connected ({products.length} Products Live)
-                </span>
-              )}
+              <span className="text-[11px] text-[#706456]">
+                ID: {spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}
+              </span>
             </div>
 
-            {spreadsheetId ? (
-              <div className="p-4 bg-emerald-50/40 border border-emerald-200/80 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="text-xs font-semibold text-emerald-900 block truncate">
-                      Spreadsheet: catalog
-                    </span>
-                    <span className="text-[11px] text-[#706456] block truncate">
-                      ID: {spreadsheetId}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <a
-                      href={spreadsheetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-2xs transition-colors"
-                    >
-                      <span>Open in Sheets</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                    <button
-                      onClick={copyUrl}
-                      className="px-2.5 py-1.5 bg-white border border-emerald-300 text-emerald-800 text-xs hover:bg-emerald-50 transition-colors"
-                    >
-                      {copied ? 'Copied' : 'Copy Link'}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-emerald-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <span className="text-[#5C5144]">
-                    Last synced: {lastSyncedAt ? `${lastSyncedAt}` : 'Never'}
+            <div className="p-4 bg-white border border-[#E0D8CB] space-y-3 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <span className="text-xs font-semibold text-[#1A1816] block truncate">
+                    Hardcoded Catalog Sheet
                   </span>
-                  <button
-                    onClick={handleSyncFromSheets}
-                    disabled={isSyncingSheets}
-                    className="px-4 py-2 bg-[#1A1816] hover:bg-[#9E7B3B] text-white font-semibold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50"
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-[#9E7B3B] hover:underline flex items-center gap-1 font-mono mt-0.5 truncate"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
-                    <span>{isSyncingSheets ? 'Syncing...' : 'Sync Catalog to Website'}</span>
-                  </button>
+                    <span>https://docs.google.com/spreadsheets/d/{spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit</span>
+                    <ExternalLink className="w-3 h-3 shrink-0" />
+                  </a>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <a
+                    href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 shadow-2xs transition-colors"
+                  >
+                    <span>Open in Sheets</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Option A: Create pre-populated 'catalog' sheet */}
-                <div className="p-4 bg-white border border-[#E0D8CB] hover:border-[#9E7B3B] transition-all flex flex-col justify-between shadow-2xs">
-                  <div>
-                    <div className="flex items-center gap-2 text-[#9E7B3B] mb-2">
-                      <Sparkles className="w-4 h-4" />
-                      <span className="text-xs font-semibold uppercase tracking-wider">
-                        Create New "catalog" Sheet
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#52483D] leading-relaxed mb-4">
-                      Creates a Google Spreadsheet named <strong>catalog</strong> in your Google Drive with all {products.length} demo bridal outfits, prices, descriptions, and high-resolution images pre-filled.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleCreateCatalogSheet}
-                    disabled={isSyncingSheets || isGoogleConnecting}
-                    className="w-full py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-2xs disabled:opacity-50"
-                  >
-                    <FileSpreadsheet className="w-4 h-4" />
-                    <span>{isSyncingSheets ? 'Creating & Populating...' : 'Create "catalog" Sheet'}</span>
-                  </button>
-                </div>
 
-                {/* Option B: Connect existing sheet */}
-                <div className="p-4 bg-white border border-[#E0D8CB] hover:border-[#9E7B3B] transition-all flex flex-col justify-between shadow-2xs">
-                  <div>
-                    <div className="flex items-center gap-2 text-[#1A1816] mb-2">
-                      <Link2 className="w-4 h-4 text-[#9E7B3B]" />
-                      <span className="text-xs font-semibold uppercase tracking-wider">
-                        Connect Existing Sheet
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#52483D] leading-relaxed mb-3">
-                      Already have your "catalog" sheet created? Paste the Google Sheet URL or ID below to link it.
-                    </p>
-                    <form onSubmit={handleSubmitConnect} className="space-y-2">
-                      <input
-                        type="text"
-                        placeholder="https://docs.google.com/spreadsheets/d/..."
-                        value={inputUrl}
-                        onChange={(e) => setInputUrl(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-[#FAF8F5] border border-[#D5CDBC] text-xs text-[#1A1816] focus:outline-none focus:border-[#9E7B3B]"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isSyncingSheets || !inputUrl.trim()}
-                        className="w-full py-2 bg-[#1A1816] hover:bg-[#9E7B3B] text-white text-xs font-semibold uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
-                      >
-                        <span>Connect & Sync</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    </form>
-                  </div>
-                </div>
+              <div className="pt-2 border-t border-[#ECE6DE] flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-[#706456]">
+                <span>Last updated: {lastSyncedAt ? `${lastSyncedAt}` : 'On Page Load'}</span>
+                <span>Active Store Products: <strong className="text-[#1A1816]">{products.length}</strong></span>
               </div>
-            )}
+            </div>
+
+            {/* Crucial Sharing Step Callout */}
+            <div className="p-4 bg-amber-50/70 border border-amber-200 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-amber-900">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Required 1-Time Setup in Google Sheets:</span>
+              </div>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                To allow the website to read your products without requiring sign-in or authorization:
+              </p>
+              <ol className="text-xs text-amber-900 list-decimal pl-5 space-y-1">
+                <li>Open your Google Sheet (click <strong>"Open in Sheets"</strong> above).</li>
+                <li>Click the green <strong>Share</strong> button at the top-right corner.</li>
+                <li>Under <strong>General access</strong>, change <strong>"Restricted"</strong> to <strong>"Anyone with the link"</strong> (Viewer).</li>
+                <li>That's all! Your live website will automatically fetch your sheet data on every visit.</li>
+              </ol>
+            </div>
+          </div>
 
             {/* Quick Demo Data Copy Box */}
             <div className="p-3 bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
@@ -285,7 +211,6 @@ export const GoogleSheetsModal: React.FC = () => {
                 <span>{csvCopied ? 'Copied to Clipboard!' : 'Copy Demo CSV Data'}</span>
               </button>
             </div>
-          </div>
 
           {/* 3. Instructions & Columns Guide */}
           <div className="p-4 bg-[#FAF8F5] border border-[#ECE6DE] space-y-3">

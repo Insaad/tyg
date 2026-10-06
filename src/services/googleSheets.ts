@@ -416,39 +416,46 @@ export const fetchPublicCatalogFromSpreadsheet = async (
   spreadsheetId: string
 ): Promise<SpreadsheetCatalogResult> => {
   const cleanId = extractSpreadsheetId(spreadsheetId);
-  if (!cleanId) throw new Error('Invalid Spreadsheet ID');
+  if (!cleanId) throw new Error('Invalid Spreadsheet ID or URL');
 
-  // Try gviz endpoint first (supports named sheet=Products)
-  const gvizUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=Products`;
-  const exportUrl = `https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv`;
+  // Candidate endpoints for public Google Sheet access
+  const candidates: string[] = [];
+  if (spreadsheetId.includes('/pub?')) {
+    candidates.push(spreadsheetId);
+  } else {
+    candidates.push(`https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv&sheet=Products`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${cleanId}/gviz/tq?tqx=out:csv`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv&sheet=Products`);
+    candidates.push(`https://docs.google.com/spreadsheets/d/${cleanId}/export?format=csv`);
+  }
 
   let csvText = '';
-  try {
-    const res = await fetch(gvizUrl);
-    if (res.ok) {
-      const text = await res.text();
-      if (!text.includes('<!DOCTYPE html>') && text.trim().length > 0) {
-        csvText = text;
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const text = await res.text();
+        // If not HTML login page and contains commas/lines, valid CSV!
+        if (
+          !text.includes('<!DOCTYPE html>') &&
+          !text.includes('accounts.google.com') &&
+          !text.includes('Sign in to your Google Account') &&
+          text.trim().length > 0 &&
+          text.includes(',')
+        ) {
+          csvText = text;
+          break;
+        }
       }
+    } catch {
+      // Continue to next candidate URL
     }
-  } catch (e) {
-    console.warn('gviz endpoint failed, trying export endpoint', e);
   }
 
   if (!csvText) {
-    const res = await fetch(exportUrl);
-    if (!res.ok) {
-      throw new Error(
-        `Could not access Google Sheet. Please make sure your sheet is set to "Anyone with the link can view" (in Google Sheets click Share > Anyone with the link).`
-      );
-    }
-    const text = await res.text();
-    if (text.includes('<!DOCTYPE html>') || text.includes('accounts.google.com')) {
-      throw new Error(
-        `Permission denied: Please open your Google Sheet, click "Share" at top right, and choose "Anyone with the link can view".`
-      );
-    }
-    csvText = text;
+    throw new Error(
+      `Your Google Sheet is currently Restricted. Please open your sheet in Google Drive, click the green "Share" button at the top-right, and change General Access from "Restricted" to "Anyone with the link" (Viewer). Once done, your website will sync with zero sign-in required!`
+    );
   }
 
   const rows = parseCSV(csvText);

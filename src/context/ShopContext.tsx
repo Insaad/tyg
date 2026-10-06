@@ -317,7 +317,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return `${BOUTIQUE_INFO.whatsappUrl}?text=${encoded}`;
   };
 
-  // Background startup sync if hardcoded or stored spreadsheet ID exists
+  // Background startup sync on page load (zero sign-in, zero authentication needed)
   useEffect(() => {
     const targetId = ADMIN_CONFIG.catalogSpreadsheetId || localStorage.getItem('ashrafi_sheet_id');
     if (targetId) {
@@ -326,10 +326,17 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (res.products && res.products.length > 0) {
             setProducts(res.products);
             localStorage.setItem('ashrafi_products_catalog', JSON.stringify(res.products));
+            if (res.categories && res.categories.length > 0) {
+              setCategories(res.categories);
+            }
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            setLastSyncedAt(timeStr);
+            localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+            setSheetsError(null);
           }
         })
-        .catch(() => {
-          // Keep local products on network/permission error
+        .catch((err) => {
+          setSheetsError(err?.message || 'Could not load from Google Sheet');
         });
     }
   }, []);

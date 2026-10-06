@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { BOUTIQUE_INFO } from '../../data/products';
 import { PageRoute } from '../../types';
-import { MapPin, Phone, Clock, Mail, CheckCircle2, ArrowRight } from 'lucide-react';
+import { MapPin, Phone, Clock, Mail, CheckCircle2, ArrowRight, Lock } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { setCurrentRoute } = useShop();
+  const { setCurrentRoute, openGoogleSheetsModal } = useShop();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -286,7 +286,18 @@ export const Footer: React.FC = () => {
 
         {/* Bottom Disclaimer & Copyright */}
         <div className="mt-14 pt-8 border-t border-[#E8E1D5] flex flex-col md:flex-row items-center justify-between text-[11px] text-[#877868] gap-4">
-          <p>© {new Date().getFullYear()} Ashrafi Bridal Studio. All Rights Reserved. Karachi, Pakistan.</p>
+          <p className="flex items-center gap-1.5">
+            <span>© {new Date().getFullYear()} Ashrafi Bridal Studio. All Rights Reserved. Karachi, Pakistan.</span>
+            {/* Discreet Admin Trigger - Hidden from customers */}
+            <button
+              onClick={openGoogleSheetsModal}
+              title="Atelier Admin"
+              className="opacity-20 hover:opacity-90 transition-opacity p-0.5 text-[#877868] hover:text-[#9E7B3B] cursor-pointer"
+              aria-label="Atelier Admin"
+            >
+              <Lock className="w-2.5 h-2.5" />
+            </button>
+          </p>
           <div className="flex items-center gap-6">
             <span>Illustrative Sample Catalogue & Pricing</span>
             <span>·</span>

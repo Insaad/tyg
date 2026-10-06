@@ -11,6 +11,7 @@ import {
   MessageCircle,
   ArrowRight,
   MapPin,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -20,6 +21,8 @@ export const Header: React.FC = () => {
     wishlistCount,
     openWishlist,
     openSearchModal,
+    openGoogleSheetsModal,
+    spreadsheetId,
   } = useShop();
 
   const [menuOpen, setMenuOpen] = useState(false);

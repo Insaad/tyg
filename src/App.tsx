@@ -12,6 +12,7 @@ import { ProductModal } from './components/common/ProductModal';
 import { WishlistDrawer } from './components/common/WishlistDrawer';
 import { AppointmentModal } from './components/common/AppointmentModal';
 import { SearchModal } from './components/common/SearchModal';
+import { GoogleSheetsModal } from './components/common/GoogleSheetsModal';
 import { CinematicIntro } from './components/common/CinematicIntro';
 
 import { HomePage } from './pages/HomePage';
@@ -98,6 +99,7 @@ const AppContent: React.FC = () => {
       <WishlistDrawer />
       <AppointmentModal />
       <SearchModal />
+      <GoogleSheetsModal />
       <FloatingWhatsApp />
 
       {/* Back to top button */}

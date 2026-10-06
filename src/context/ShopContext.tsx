@@ -1,6 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { User } from 'firebase/auth';
 import { CartItem, PageRoute, Product, WishlistItem, CategoryTheme } from '../types';
 import { PRODUCTS, BOUTIQUE_INFO, CATEGORY_THEMES } from '../data/products';
+import { ADMIN_CONFIG } from '../config/adminConfig';
+import {
+  initAuth,
+  googleSignIn,
+  googleLogout,
+  getAccessToken,
+  setCachedAccessToken,
+} from '../services/googleAuth';
+import {
+  createCatalogSpreadsheet,
+  fetchCatalogFromSpreadsheet,
+  findExistingCatalogSpreadsheet,
+  extractSpreadsheetId,
+} from '../services/googleSheets';
 
 interface ShopContextType {
   currentRoute: PageRoute;
@@ -50,9 +65,26 @@ interface ShopContextType {
   formatPKR: (amount: number) => string;
   createWhatsAppLink: (message: string) => string;
 
-  // Products & Categories
+  // Products & Categories (Dynamic with Google Sheets support)
   products: Product[];
   categories: CategoryTheme[];
+
+  // Google Sheets Catalog Management
+  isGoogleSheetsOpen: boolean;
+  openGoogleSheetsModal: () => void;
+  closeGoogleSheetsModal: () => void;
+  googleUser: User | null;
+  isGoogleConnecting: boolean;
+  spreadsheetId: string;
+  spreadsheetUrl: string;
+  isSyncingSheets: boolean;
+  sheetsError: string | null;
+  lastSyncedAt: string | null;
+  handleGoogleSignIn: () => Promise<void>;
+  handleGoogleLogout: () => Promise<void>;
+  handleCreateCatalogSheet: () => Promise<void>;
+  handleSyncFromSheets: () => Promise<void>;
+  handleConnectExistingSheet: (urlOrId: string) => Promise<void>;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -66,8 +98,65 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const products = PRODUCTS;
-  const categories = Object.values(CATEGORY_THEMES);
+  // Products state (can be updated live from Google Sheet)
+  const [products, setProducts] = useState<Product[]>(() => {
+    try {
+      const saved = localStorage.getItem('ashrafi_products_catalog');
+      return saved ? JSON.parse(saved) : PRODUCTS;
+    } catch {
+      return PRODUCTS;
+    }
+  });
+
+  const [categories, setCategories] = useState<CategoryTheme[]>(() => {
+    return Object.values(CATEGORY_THEMES);
+  });
+
+  // Google Sheets State
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [isGoogleConnecting, setIsGoogleConnecting] = useState(false);
+  const [isGoogleSheetsOpen, setIsGoogleSheetsOpen] = useState(false);
+  const [spreadsheetId, setSpreadsheetId] = useState<string>(() => {
+    return ADMIN_CONFIG.catalogSpreadsheetId || localStorage.getItem('ashrafi_sheet_id') || '';
+  });
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState<string>(() => {
+    if (ADMIN_CONFIG.catalogSpreadsheetId) {
+      return `https://docs.google.com/spreadsheets/d/${ADMIN_CONFIG.catalogSpreadsheetId}/edit`;
+    }
+    return localStorage.getItem('ashrafi_sheet_url') || '';
+  });
+  const [isSyncingSheets, setIsSyncingSheets] = useState(false);
+  const [sheetsError, setSheetsError] = useState<string | null>(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(() => {
+    return localStorage.getItem('ashrafi_sheet_synced_at') || null;
+  });
+
+  // Secret Admin Access (via #admin, ?admin=true, or keyboard Alt+A / Ctrl+Shift+A)
+  useEffect(() => {
+    const checkAdminTrigger = () => {
+      if (typeof window === 'undefined') return;
+      const url = window.location.href;
+      if (url.includes('#admin') || url.includes('?admin=true') || url.includes('&admin=true')) {
+        setIsGoogleSheetsOpen(true);
+      }
+    };
+    checkAdminTrigger();
+    window.addEventListener('hashchange', checkAdminTrigger);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Alt + A or Ctrl + Shift + A to open Admin Sheet panel
+      if ((e.altKey && e.key.toLowerCase() === 'a') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'a')) {
+        e.preventDefault();
+        setIsGoogleSheetsOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('hashchange', checkAdminTrigger);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Cart with local storage persistence
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -105,6 +194,20 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [wishlist]);
 
+  // Init Firebase Auth
+  useEffect(() => {
+    const unsubscribe = initAuth(
+      (user, token) => {
+        setGoogleUser(user);
+        setCachedAccessToken(token);
+      },
+      () => {
+        setGoogleUser(null);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
   // UI Modals & Drawers
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
@@ -134,6 +237,12 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const openSearchModal = () => setIsSearchOpen(true);
   const closeSearchModal = () => setIsSearchOpen(false);
+
+  const openGoogleSheetsModal = () => setIsGoogleSheetsOpen(true);
+  const closeGoogleSheetsModal = () => {
+    setIsGoogleSheetsOpen(false);
+    setSheetsError(null);
+  };
 
   const addToCart = (
     product: Product,
@@ -207,6 +316,148 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return `${BOUTIQUE_INFO.whatsappUrl}?text=${encoded}`;
   };
 
+  // Google Sheets Actions
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsGoogleConnecting(true);
+      setSheetsError(null);
+      const res = await googleSignIn();
+      if (res) {
+        setGoogleUser(res.user);
+        // Automatically check if an existing spreadsheet named 'catalog' exists in Drive
+        const existing = await findExistingCatalogSpreadsheet(res.accessToken);
+        if (existing && !spreadsheetId) {
+          const url = `https://docs.google.com/spreadsheets/d/${existing.id}/edit`;
+          setSpreadsheetId(existing.id);
+          setSpreadsheetUrl(url);
+          localStorage.setItem('ashrafi_sheet_id', existing.id);
+          localStorage.setItem('ashrafi_sheet_url', url);
+        }
+      }
+    } catch (err: any) {
+      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
+        setSheetsError(err?.message || 'Failed to sign in with Google');
+      }
+    } finally {
+      setIsGoogleConnecting(false);
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    await googleLogout();
+    setGoogleUser(null);
+  };
+
+  const handleCreateCatalogSheet = async () => {
+    let token = await getAccessToken();
+    if (!token) {
+      const signinRes = await googleSignIn();
+      if (!signinRes) return;
+      setGoogleUser(signinRes.user);
+      token = signinRes.accessToken;
+    }
+
+    try {
+      setIsSyncingSheets(true);
+      setSheetsError(null);
+      const created = await createCatalogSpreadsheet(token, 'catalog');
+      setSpreadsheetId(created.spreadsheetId);
+      setSpreadsheetUrl(created.spreadsheetUrl);
+      localStorage.setItem('ashrafi_sheet_id', created.spreadsheetId);
+      localStorage.setItem('ashrafi_sheet_url', created.spreadsheetUrl);
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncedAt(timeStr);
+      localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+    } catch (err: any) {
+      console.error(err);
+      setSheetsError(err?.message || 'Failed to create spreadsheet');
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
+
+  const handleSyncFromSheets = async () => {
+    if (!spreadsheetId) {
+      setSheetsError("Please connect or create your 'catalog' spreadsheet first.");
+      return;
+    }
+
+    let token = await getAccessToken();
+    if (!token) {
+      const signinRes = await googleSignIn();
+      if (!signinRes) return;
+      setGoogleUser(signinRes.user);
+      token = signinRes.accessToken;
+    }
+
+    try {
+      setIsSyncingSheets(true);
+      setSheetsError(null);
+      const result = await fetchCatalogFromSpreadsheet(token, spreadsheetId);
+      if (result.products.length > 0) {
+        setProducts(result.products);
+        localStorage.setItem('ashrafi_products_catalog', JSON.stringify(result.products));
+      }
+      if (result.categories.length > 0) {
+        setCategories(result.categories);
+      }
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncedAt(timeStr);
+      localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+    } catch (err: any) {
+      console.error(err);
+      setSheetsError(err?.message || 'Failed to sync catalog from Google Sheet.');
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
+
+  const handleConnectExistingSheet = async (urlOrId: string) => {
+    const cleanId = extractSpreadsheetId(urlOrId);
+    if (!cleanId) {
+      setSheetsError('Please enter a valid Google Sheets URL or ID');
+      return;
+    }
+
+    let token = await getAccessToken();
+    if (!token) {
+      const signinRes = await googleSignIn();
+      if (!signinRes) return;
+      setGoogleUser(signinRes.user);
+      token = signinRes.accessToken;
+    }
+
+    try {
+      setIsSyncingSheets(true);
+      setSheetsError(null);
+      const result = await fetchCatalogFromSpreadsheet(token, cleanId);
+
+      const url = `https://docs.google.com/spreadsheets/d/${cleanId}/edit`;
+      setSpreadsheetId(cleanId);
+      setSpreadsheetUrl(url);
+      localStorage.setItem('ashrafi_sheet_id', cleanId);
+      localStorage.setItem('ashrafi_sheet_url', url);
+
+      if (result.products.length > 0) {
+        setProducts(result.products);
+        localStorage.setItem('ashrafi_products_catalog', JSON.stringify(result.products));
+      }
+      if (result.categories.length > 0) {
+        setCategories(result.categories);
+      }
+
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncedAt(timeStr);
+      localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+    } catch (err: any) {
+      setSheetsError(err?.message || 'Could not connect to that Google Sheet. Ensure the sheet has tabs named Products.');
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -246,6 +497,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createWhatsAppLink,
         products,
         categories,
+        isGoogleSheetsOpen,
+        openGoogleSheetsModal,
+        closeGoogleSheetsModal,
+        googleUser,
+        isGoogleConnecting,
+        spreadsheetId,
+        spreadsheetUrl,
+        isSyncingSheets,
+        sheetsError,
+        lastSyncedAt,
+        handleGoogleSignIn,
+        handleGoogleLogout,
+        handleCreateCatalogSheet,
+        handleSyncFromSheets,
+        handleConnectExistingSheet,
       }}
     >
       {children}

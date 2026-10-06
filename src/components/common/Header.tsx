@@ -21,8 +21,8 @@ export const Header: React.FC = () => {
     wishlistCount,
     openWishlist,
     openSearchModal,
-    openGoogleSheetsModal,
-    spreadsheetId,
+    categories,
+    createWhatsAppLink,
   } = useShop();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,23 +33,12 @@ export const Header: React.FC = () => {
   };
 
   const primaryNavLinks: { label: string; route: PageRoute; urdu: string; desc: string }[] = [
-    { label: 'Home', route: 'home', urdu: 'مرکز', desc: 'Atelier introduction & featured showcases' },
-    { label: 'Shop All Creations', route: 'shop-all', urdu: 'تمام ملبوسات', desc: 'Complete catalog of royal bridal & formal ensembles' },
-    { label: 'Nikah Collection', route: 'nikah', urdu: 'نکاح', desc: 'Pristine ivory, pearls & antique silver mukesh' },
-    { label: 'Barat Collection', route: 'barat', urdu: 'بارات', desc: 'Imperial deep crimson velvet & 24K gold zardozi' },
-    { label: 'Mehndi Collection', route: 'mehndi', urdu: 'مہندی', desc: 'Festive emerald, saffron & traditional gota patti' },
-    { label: 'Walima Collection', route: 'walima', urdu: 'ولیمہ', desc: 'Romantic dusty rose, champagne & Swarovski crystals' },
+    { label: 'Home', route: 'home', urdu: 'مرکز', desc: 'Atelier introduction & editorial showcase' },
+    { label: 'Complete Catalog', route: 'shop-all', urdu: 'تمام ملبوسات', desc: 'Browse all bridal & formal collections' },
     { label: 'Made to Order Couture', route: 'made-to-order', urdu: 'خصوصی سلائی', desc: 'Bespoke one-on-one bridal design & custom measurements' },
     { label: 'Editorial Lookbook 2026', route: 'lookbook', urdu: 'لوک بک', desc: 'Campaign photography and official video showcases' },
-    { label: 'Heritage & Story', route: 'about', urdu: 'ہماری تاریخ', desc: 'Master artisans & generational Karchob embroidery' },
-    { label: 'Karachi Boutique', route: 'contact', urdu: 'رابطہ', desc: 'Visit our Tariq Road flagship salon & showroom' },
-  ];
-
-  const subCategories: { label: string; route: PageRoute; desc: string }[] = [
-    { label: 'Sharara & Gharara', route: 'sharara-gharara', desc: 'Mughal royal courts & Farshi volume' },
-    { label: 'Luxury Sarees', route: 'sarees', desc: 'Handcrafted tissue silks & embellished pallus' },
-    { label: 'Frocks & Maxis', route: 'frocks-maxis', desc: 'Cascading floor-length bridal kalidaars' },
-    { label: 'Party Wear Formals', route: 'party-wear', desc: 'Sleek luxury formals & cocktail evening wear' },
+    { label: 'Heritage & Craftsmanship', route: 'about', urdu: 'ہماری تاریخ', desc: 'Master artisans & generational Karchob embroidery' },
+    { label: 'Karachi Boutique', route: 'contact', urdu: 'رابطہ', desc: 'Visit our Tariq Road flagship showroom' },
   ];
 
   return (
@@ -190,21 +179,24 @@ export const Header: React.FC = () => {
               <div className="md:col-span-5 space-y-6 md:border-l md:border-[#ECE6DE] md:pl-8">
                 <div>
                   <span className="text-[10px] uppercase tracking-[0.3em] text-[#9E7B3B] font-semibold block mb-3">
-                    SPECIALTY SILHOUETTES
+                    COLLECTIONS & SILHOUETTES
                   </span>
-                  <div className="space-y-2">
-                    {subCategories.map((item) => (
+                  <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    {categories.map((cat) => (
                       <button
-                        key={item.route}
-                        onClick={() => navigateTo(item.route)}
+                        key={cat.id}
+                        onClick={() => navigateTo(cat.id)}
                         className={`w-full text-left p-2.5 border transition-all text-xs flex flex-col ${
-                          currentRoute === item.route
+                          currentRoute === cat.id
                             ? 'border-[#9E7B3B] bg-[#FAF8F5] text-[#9E7B3B] font-bold'
                             : 'border-[#E8E2D8] hover:border-[#9E7B3B] text-[#1A1816] hover:bg-[#FAF8F5]'
                         }`}
                       >
-                        <span className="font-semibold">{item.label}</span>
-                        <span className="text-[10px] text-[#706456] mt-0.5">{item.desc}</span>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">{cat.name}</span>
+                          <span className="text-[10px] text-[#9E7B3B] font-serif">{cat.urduName}</span>
+                        </div>
+                        <span className="text-[10px] text-[#706456] mt-0.5 line-clamp-1">{cat.tagline || cat.description}</span>
                       </button>
                     ))}
                   </div>

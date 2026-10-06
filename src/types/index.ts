@@ -1,35 +1,36 @@
-export type CategoryId =
-  | 'all'
-  | 'nikah'
-  | 'barat'
-  | 'mehndi'
-  | 'walima'
-  | 'party-wear'
-  | 'sarees'
-  | 'sharara-gharara'
-  | 'frocks-maxis'
-  | 'made-to-order';
+export type CategoryId = string;
 
 export interface Product {
   id: string;
   name: string;
-  category: CategoryId;
+  category: string;
+  subCategory?: string;
+  subSubCategory?: string;
   categoryName: string;
   price: number;
   originalPrice?: number;
   image: string;
   secondaryImage?: string;
+  image3?: string;
+  image4?: string;
+  galleryImages?: string[];
+  moreImages?: string[];
   colors: string[];
   fabric: string;
+  shirtFabric?: string;
+  trouserFabric?: string;
+  dupattaFabric?: string;
+  silhouette?: string;
   embroidery: string;
   status: 'Stitched' | 'Unstitched' | 'Made to Order' | 'Semi-Stitched';
   description: string;
   details: string[];
-  pieces: string; // e.g. "3-Piece (Lehenga, Choli, Dupatta)"
-  leadTime: string; // e.g. "6 to 8 weeks for custom bridal stitching"
+  pieces: string; // e.g. "3-Piece (Shirt, Dupatta, Trouser)"
+  leadTime: string; // e.g. "4 to 6 weeks"
   isFeatured?: boolean;
   isBestseller?: boolean;
   isNewArrival?: boolean;
+  careInstructions?: string;
 }
 
 export interface CartItem {
@@ -47,8 +48,11 @@ export interface WishlistItem {
 }
 
 export interface CategoryTheme {
-  id: CategoryId;
+  id: string;
   name: string;
+  parentCategory?: string;
+  subCategory?: string;
+  subSubCategory?: string;
   urduName: string;
   tagline: string;
   description: string;
@@ -72,15 +76,10 @@ export interface Testimonial {
 export type PageRoute =
   | 'home'
   | 'shop-all'
-  | 'nikah'
-  | 'barat'
-  | 'mehndi'
-  | 'walima'
-  | 'party-wear'
-  | 'sarees'
-  | 'sharara-gharara'
-  | 'frocks-maxis'
+  | 'product-detail'
   | 'made-to-order'
   | 'about'
   | 'lookbook'
-  | 'contact';
+  | 'contact'
+  | string;
+

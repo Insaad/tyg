@@ -15,7 +15,12 @@ import {
   Copy,
   Download,
 } from 'lucide-react';
-import { generateDemoProductsCsv } from '../../services/googleSheets';
+import {
+  generateDemoProductsCsv,
+  generateDemoCategoriesCsv,
+  generateDemoProductsTSV,
+  generateDemoCategoriesTSV,
+} from '../../services/googleSheets';
 
 export const GoogleSheetsModal: React.FC = () => {
   const {
@@ -31,14 +36,19 @@ export const GoogleSheetsModal: React.FC = () => {
     handleGoogleSignIn,
     handleGoogleLogout,
     handleCreateCatalogSheet,
+    handleExportToConnectedSheet,
     handleSyncFromSheets,
     handleConnectExistingSheet,
     products,
+    categories,
   } = useShop();
 
   const [inputUrl, setInputUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [csvCopied, setCsvCopied] = useState(false);
+  const [csvCatCopied, setCsvCatCopied] = useState(false);
+  const [formulaCopied, setFormulaCopied] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
 
   if (!isGoogleSheetsOpen) return null;
 
@@ -48,11 +58,68 @@ export const GoogleSheetsModal: React.FC = () => {
     handleConnectExistingSheet(inputUrl.trim());
   };
 
-  const handleCopyDemoCsv = () => {
-    const csv = generateDemoProductsCsv();
-    navigator.clipboard.writeText(csv);
+  const handleCopyTsvProducts = () => {
+    const tsv = generateDemoProductsTSV();
+    navigator.clipboard.writeText(tsv);
     setCsvCopied(true);
-    setTimeout(() => setCsvCopied(false), 2500);
+    setTimeout(() => setCsvCopied(false), 3000);
+  };
+
+  const handleCopyTsvCategories = () => {
+    const tsv = generateDemoCategoriesTSV();
+    navigator.clipboard.writeText(tsv);
+    setCsvCatCopied(true);
+    setTimeout(() => setCsvCatCopied(false), 3000);
+  };
+
+  const handleCopyImportFormula = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const formula = `=IMPORTDATA("${origin}/catalog_products.csv")`;
+    navigator.clipboard.writeText(formula);
+    setFormulaCopied(true);
+    setTimeout(() => setFormulaCopied(false), 3000);
+  };
+
+  const handleCopyCategoriesCsv = () => {
+    const csv = generateDemoCategoriesCsv();
+    navigator.clipboard.writeText(csv);
+    setCsvCatCopied(true);
+    setTimeout(() => setCsvCatCopied(false), 2500);
+  };
+
+  const handleDownloadProductsCsv = () => {
+    const csv = generateDemoProductsCsv();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'catalog_products.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDownloadCategoriesCsv = () => {
+    const csv = generateDemoCategoriesCsv();
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'catalog_categories.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePushAllToSheet = async () => {
+    setExportSuccess(false);
+    try {
+      await handleExportToConnectedSheet();
+      setExportSuccess(true);
+      setTimeout(() => setExportSuccess(false), 4000);
+    } catch {
+      // sheetsError handles it
+    }
   };
 
   const copyUrl = () => {
@@ -132,7 +199,7 @@ export const GoogleSheetsModal: React.FC = () => {
             </button>
           </div>
 
-          {/* 2. Connected Spreadsheet Card */}
+          {/* 2. Connected Spreadsheet Card & Sheet Input */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase tracking-widest text-[#9E7B3B] font-semibold">
@@ -143,11 +210,46 @@ export const GoogleSheetsModal: React.FC = () => {
               </span>
             </div>
 
+            {/* Change or Connect Custom Google Sheet URL Form */}
+            <form onSubmit={handleSubmitConnect} className="p-3 bg-[#FAF8F5] border border-[#E0D8CB] space-y-2">
+              <label className="block text-xs font-semibold text-[#1A1816]">
+                Connect Your Personal Google Sheet:
+              </label>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  placeholder="Paste your Google Sheet link or ID here..."
+                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#D5CDBC] focus:border-[#9E7B3B] focus:outline-hidden text-[#1A1816] font-mono"
+                />
+                <button
+                  type="submit"
+                  disabled={isSyncingSheets || !inputUrl.trim()}
+                  className="px-3 py-1.5 bg-[#1A1816] hover:bg-[#9E7B3B] disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider transition-colors shrink-0"
+                >
+                  Connect Sheet
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCreateCatalogSheet}
+                  disabled={isSyncingSheets}
+                  className="px-3 py-1.5 bg-white hover:bg-[#FAF8F5] border border-[#D5CDBC] text-[#1A1816] text-xs font-semibold uppercase tracking-wider transition-colors shrink-0 flex items-center justify-center gap-1"
+                  title="Automatically creates a new 'catalog' spreadsheet in your Google Drive pre-filled with all products and categories"
+                >
+                  <span>+ Create New in Drive</span>
+                </button>
+              </div>
+              <span className="text-[10px] text-[#706456] block">
+                You can create a blank Google Sheet at <strong>sheets.new</strong>, paste the link above, and click <strong>"Push All Products to My Sheet"</strong> below!
+              </span>
+            </form>
+
             <div className="p-4 bg-white border border-[#E0D8CB] space-y-3 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-[#1A1816] block truncate">
-                    Hardcoded Catalog Sheet
+                    Active Catalog Spreadsheet
                   </span>
                   <a
                     href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit`}
@@ -196,20 +298,143 @@ export const GoogleSheetsModal: React.FC = () => {
             </div>
           </div>
 
-            {/* Quick Demo Data Copy Box */}
-            <div className="p-3 bg-white border border-[#E8E2D8] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-              <div>
-                <span className="font-semibold text-[#1A1816] block">Need the Demo Products for your Google Sheet?</span>
-                <span className="text-[#706456] text-[11px]">Copy the complete demo products CSV table and paste it directly into cell A1 of your Google Sheet.</span>
+            {/* Haseens Official 200 Products & 14 Categories Catalog Actions */}
+            <div className="p-4 bg-white border border-[#E8E2D8] space-y-4 shadow-2xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECE6DE] pb-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-xs text-[#1A1816]">
+                      Haseens Official Catalog ({products.length} Products · {categories.length} Collections)
+                    </span>
+                    <span className="px-1.5 py-0.5 text-[9px] uppercase font-bold bg-emerald-100 text-emerald-800 rounded-xs">
+                      READY TO SYNC
+                    </span>
+                  </div>
+                  <span className="text-[#706456] text-[11px] block mt-0.5">
+                    Pushes all products, categories, sub-categories, primary images, secondary images, and full galleries into your sheet tabs.
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePushAllToSheet}
+                  disabled={isSyncingSheets}
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shrink-0 shadow-2xs disabled:opacity-50 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingSheets ? 'Writing to Sheet...' : 'Push All Products to My Sheet'}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={handleCopyDemoCsv}
-                className="px-3.5 py-1.5 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] font-semibold text-xs transition-colors flex items-center gap-1.5 shrink-0 shadow-2xs"
-              >
-                <Copy className="w-3.5 h-3.5 text-[#9E7B3B]" />
-                <span>{csvCopied ? 'Copied to Clipboard!' : 'Copy Demo CSV Data'}</span>
-              </button>
+
+              {exportSuccess && (
+                <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-2.5 animate-in fade-in">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <div>
+                    <strong className="block font-semibold">Sync Successful!</strong>
+                    <span>All 200 products &amp; 14 categories with all primary, secondary, and extra images have been written to your Google Sheet tabs ('Products' &amp; 'Categories'). Click "Open in Sheets" above to inspect!</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Method 1: Guaranteed 1-Click Copy & Paste (TSV) */}
+              <div className="p-3.5 bg-[#FAF8F5] border border-[#E0D8CB] space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-[#1A1816] flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#9E7B3B]" />
+                    <span>Method 1: Direct 1-Click Copy &amp; Paste (Works 100% on any device)</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-semibold text-[#9E7B3B]">Zero Login Required</span>
+                </div>
+                <p className="text-[11px] text-[#706456]">
+                  Click the button below, then open your Google Sheet, click cell <strong>A1</strong>, and press <strong>Ctrl+V</strong> (or <strong>Cmd+V</strong>). All columns, pictures, prices, and specifications paste instantly!
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCopyTsvProducts}
+                    className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <div>
+                        <span className="block font-semibold">Copy 200 Products (Ready for Cell A1)</span>
+                        <span className="text-[10px] text-[#706456] font-normal">Formatted table with all image URLs</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCopied ? 'Copied!' : 'Copy'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCopyTsvCategories}
+                    className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <div>
+                        <span className="block font-semibold">Copy 14 Categories (Ready for Cell A1)</span>
+                        <span className="text-[10px] text-[#706456] font-normal">For "Categories" sheet tab</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCatCopied ? 'Copied!' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Method 2: Download & Import */}
+              <div className="p-3 bg-white border border-[#E0D8CB] space-y-2">
+                <span className="text-xs font-semibold text-[#1A1816] block">
+                  Method 2: Download CSV Files (In Google Sheets: File &gt; Import &gt; Upload)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDownloadProductsCsv}
+                    className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>Download catalog_products.csv</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">200 items</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleDownloadCategoriesCsv}
+                    className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                      <span>Download catalog_categories.csv</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">14 themes</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Method 3: Formula in Google Sheets */}
+              <div className="p-3 bg-white border border-[#E0D8CB] space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-[#1A1816]">
+                    Method 3: Live Auto-Fill Formula for Google Sheets
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyImportFormula}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{formulaCopied ? 'Formula Copied!' : 'Copy Formula'}</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#706456]">
+                  Paste this into cell <strong>A1</strong> of your Google Sheet to let Google automatically pull all 200 products:
+                </p>
+                <div className="p-2 bg-[#FAF8F5] border border-[#E8E2D8] font-mono text-[11px] text-[#1A1816] select-all truncate">
+                  =IMPORTDATA("{typeof window !== 'undefined' ? window.location.origin : ''}/catalog_products.csv")
+                </div>
+              </div>
             </div>
 
           {/* 3. Instructions & Columns Guide */}

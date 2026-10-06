@@ -52,6 +52,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('google_oauth_token', credential.accessToken);
+      } catch (e) {
+        console.warn('Could not store token in sessionStorage', e);
+      }
+    }
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     if (
@@ -76,14 +83,44 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
-  return cachedAccessToken;
+  if (cachedAccessToken) return cachedAccessToken;
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = sessionStorage.getItem('google_oauth_token');
+      if (saved) {
+        cachedAccessToken = saved;
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
 };
 
 export const setCachedAccessToken = (token: string | null) => {
   cachedAccessToken = token;
+  if (typeof window !== 'undefined') {
+    try {
+      if (token) {
+        sessionStorage.setItem('google_oauth_token', token);
+      } else {
+        sessionStorage.removeItem('google_oauth_token');
+      }
+    } catch {
+      // ignore
+    }
+  }
 };
 
 export const googleLogout = async () => {
   await signOut(auth);
   cachedAccessToken = null;
+  if (typeof window !== 'undefined') {
+    try {
+      sessionStorage.removeItem('google_oauth_token');
+    } catch {
+      // ignore
+    }
+  }
 };

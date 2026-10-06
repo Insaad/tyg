@@ -16,6 +16,7 @@ import {
   fetchPublicCatalogFromSpreadsheet,
   findExistingCatalogSpreadsheet,
   extractSpreadsheetId,
+  populateCatalogToSpreadsheet,
 } from '../services/googleSheets';
 
 interface ShopContextType {
@@ -84,6 +85,7 @@ interface ShopContextType {
   handleGoogleSignIn: () => Promise<void>;
   handleGoogleLogout: () => Promise<void>;
   handleCreateCatalogSheet: () => Promise<void>;
+  handleExportToConnectedSheet: () => Promise<void>;
   handleSyncFromSheets: () => Promise<void>;
   handleConnectExistingSheet: (urlOrId: string) => Promise<void>;
 }
@@ -103,7 +105,13 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('ashrafi_products_catalog');
-      return saved ? JSON.parse(saved) : PRODUCTS;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length >= PRODUCTS.length) {
+          return parsed;
+        }
+      }
+      return PRODUCTS;
     } catch {
       return PRODUCTS;
     }
@@ -209,10 +217,46 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsubscribe();
   }, []);
 
+  // Dynamic categories derived from both CATEGORY_THEMES and all loaded products
+  const dynamicCategories = React.useMemo(() => {
+    const map = new Map<string, CategoryTheme>();
+    // Seed with existing themes
+    categories.forEach((cat) => map.set(cat.id.toLowerCase(), cat));
+
+    // Discover any new categories present in the products catalog
+    products.forEach((p) => {
+      if (!p.category) return;
+      const catKey = p.category.toLowerCase();
+      if (!map.has(catKey)) {
+        map.set(catKey, {
+          id: p.category,
+          name: p.categoryName || p.category.charAt(0).toUpperCase() + p.category.slice(1),
+          urduName: 'کلیکشن',
+          tagline: `Handcrafted ${p.categoryName || p.category} Couture`,
+          description: `Bespoke ${p.categoryName || p.category} collection handcrafted on wooden karchob frames in Karachi atelier.`,
+          heroImage: p.image,
+          accentColor: '#93733A',
+          bgGradient: 'from-[#FAF7F2] via-[#F4EFE6] to-[#FDFBF7]',
+          badgeTone: 'border-[#93733A]/30 text-[#6B5324] bg-[#93733A]/5',
+          paletteDescription: 'Artisan Palette',
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [categories, products]);
+
   // UI Modals & Drawers
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [activeProduct, setActiveProduct] = useState<Product | null>(() => {
+    try {
+      const saved = localStorage.getItem('ashrafi_active_product');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isAppointmentOpen, setIsAppointmentOpen] = useState(false);
   const [appointmentPrefill, setAppointmentPrefill] = useState('');
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -224,8 +268,21 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const openWishlist = () => setIsWishlistOpen(true);
   const closeWishlist = () => setIsWishlistOpen(false);
 
-  const openProductModal = (product: Product) => setActiveProduct(product);
-  const closeProductModal = () => setActiveProduct(null);
+  // Navigate to dedicated Product Detail Page instead of opening popup
+  const openProductModal = (product: Product) => {
+    setActiveProduct(product);
+    try {
+      localStorage.setItem('ashrafi_active_product', JSON.stringify(product));
+    } catch {}
+    setCurrentRouteState('product-detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const closeProductModal = () => {
+    setActiveProduct(null);
+    setCurrentRouteState('shop-all');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const openAppointmentModal = (prefillNote = '') => {
     setAppointmentPrefill(prefillNote);
@@ -526,6 +583,45 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const handleExportToConnectedSheet = async () => {
+    setIsSyncingSheets(true);
+    setSheetsError(null);
+    try {
+      let token = await getAccessToken();
+      if (!token) {
+        const signinRes = await googleSignIn();
+        if (!signinRes) {
+          throw new Error(
+            "Google Sign-In was cancelled or popup was blocked by your browser. You can still populate your Google Sheet in 5 seconds without sign-in by using the 'Copy Table (Cell A1)' or 'Download CSV' buttons below!"
+          );
+        }
+        setGoogleUser(signinRes.user);
+        token = signinRes.accessToken;
+      }
+      const targetId = spreadsheetId || ADMIN_CONFIG.catalogSpreadsheetId;
+      if (!targetId) {
+        throw new Error('No Google Sheet connected. Connect a sheet first.');
+      }
+      // Write the full 200 products list and categories
+      const res = await populateCatalogToSpreadsheet(token, targetId, PRODUCTS, dynamicCategories);
+      setProducts(PRODUCTS);
+      localStorage.setItem('ashrafi_products_catalog', JSON.stringify(PRODUCTS));
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setLastSyncedAt(timeStr);
+      localStorage.setItem('ashrafi_sheet_synced_at', timeStr);
+      return res;
+    } catch (err: any) {
+      console.error('Export error:', err);
+      const msg =
+        err?.message ||
+        "Could not write directly to Google Sheet. Please make sure you granted write permissions or use the 'Copy Table (Cell A1)' button below.";
+      setSheetsError(msg);
+      throw err;
+    } finally {
+      setIsSyncingSheets(false);
+    }
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -564,7 +660,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         formatPKR,
         createWhatsAppLink,
         products,
-        categories,
+        categories: dynamicCategories,
         isGoogleSheetsOpen,
         openGoogleSheetsModal,
         closeGoogleSheetsModal,
@@ -578,6 +674,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleGoogleSignIn,
         handleGoogleLogout,
         handleCreateCatalogSheet,
+        handleExportToConnectedSheet,
         handleSyncFromSheets,
         handleConnectExistingSheet,
       }}

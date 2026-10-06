@@ -8,7 +8,6 @@ import { ShopProvider, useShop } from './context/ShopContext';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { FloatingWhatsApp } from './components/common/FloatingWhatsApp';
-import { ProductModal } from './components/common/ProductModal';
 import { WishlistDrawer } from './components/common/WishlistDrawer';
 import { AppointmentModal } from './components/common/AppointmentModal';
 import { SearchModal } from './components/common/SearchModal';
@@ -18,6 +17,7 @@ import { CinematicIntro } from './components/common/CinematicIntro';
 import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { ShopAllPage } from './pages/ShopAllPage';
+import { ProductDetailPage } from './pages/ProductDetailPage';
 import { MadeToOrderPage } from './pages/MadeToOrderPage';
 import { AboutPage } from './pages/AboutPage';
 import { LookbookPage } from './pages/LookbookPage';
@@ -58,15 +58,8 @@ const AppContent: React.FC = () => {
         return <HomePage />;
       case 'shop-all':
         return <ShopAllPage />;
-      case 'nikah':
-      case 'barat':
-      case 'mehndi':
-      case 'walima':
-      case 'party-wear':
-      case 'sarees':
-      case 'sharara-gharara':
-      case 'frocks-maxis':
-        return <CategoryPage categoryId={currentRoute} />;
+      case 'product-detail':
+        return <ProductDetailPage />;
       case 'made-to-order':
         return <MadeToOrderPage />;
       case 'about':
@@ -76,7 +69,8 @@ const AppContent: React.FC = () => {
       case 'contact':
         return <ContactPage />;
       default:
-        return <HomePage />;
+        // Any dynamic category from Google Sheets or catalog
+        return <CategoryPage categoryId={currentRoute} />;
     }
   };
 
@@ -95,7 +89,6 @@ const AppContent: React.FC = () => {
       <Footer />
 
       {/* 5. Persistent Interactive Modals */}
-      <ProductModal />
       <WishlistDrawer />
       <AppointmentModal />
       <SearchModal />

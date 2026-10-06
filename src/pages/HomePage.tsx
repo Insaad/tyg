@@ -93,7 +93,39 @@ export const HomePage: React.FC = () => {
             ASHRAFI BRIDAL STUDIO
           </h1>
         </div>
+
+        {/* Subtle Luxury Scroll Cue */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 pointer-events-none opacity-80">
+          <span className="text-[9px] tracking-[0.3em] uppercase text-stone-200 font-sans font-light">
+            Scroll to Explore
+          </span>
+          <div className="w-[1px] h-8 bg-gradient-to-b from-[#B38D4F] to-transparent animate-pulse" />
+        </div>
       </section>
+
+      {/* Infinite Atelier Craftsmanship Ticker */}
+      <div className="bg-[#1A1816] text-[#EAE4DB] py-3.5 border-y border-[#9E7B3B]/40 overflow-hidden relative select-none">
+        <div className="animate-marquee whitespace-nowrap text-[11px] tracking-[0.26em] uppercase font-medium">
+          <div className="flex items-center gap-8 shrink-0">
+            <span>✦ Bespoke Karachi Atelier</span>
+            <span>✦ 24K Gold Tilla & Zardozi</span>
+            <span>✦ Wooden Karchob Hand-Embroidery</span>
+            <span>✦ Worldwide Insured Courier</span>
+            <span>✦ Pure 80g Raw Silk & French Net</span>
+            <span>✦ Nikah · Barat · Mehndi · Walima</span>
+            <span>✦ GF-26 Saima Centre Tariq Road</span>
+          </div>
+          <div className="flex items-center gap-8 shrink-0 ml-8">
+            <span>✦ Bespoke Karachi Atelier</span>
+            <span>✦ 24K Gold Tilla & Zardozi</span>
+            <span>✦ Wooden Karchob Hand-Embroidery</span>
+            <span>✦ Worldwide Insured Courier</span>
+            <span>✦ Pure 80g Raw Silk & French Net</span>
+            <span>✦ Nikah · Barat · Mehndi · Walima</span>
+            <span>✦ GF-26 Saima Centre Tariq Road</span>
+          </div>
+        </div>
+      </div>
 
       {/* Featured Bridal Catalog */}
       <section className="py-20 bg-white border-b border-[#ECE6DE]">

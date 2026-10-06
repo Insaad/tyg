@@ -46,7 +46,7 @@ Please share booking availability, customization options, and delivery timelines
       onClick={() => openProductModal(product)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className="group cursor-pointer flex flex-col bg-white border border-[#E8E2D8] hover:border-[#9E7B3B]/60 transition-all duration-300 relative shadow-2xs hover:shadow-md hover:-translate-y-1 overflow-hidden"
+      className="group cursor-pointer flex flex-col bg-white border border-[#E8E2D8] hover:border-[#B38D4F] transition-all duration-400 relative shadow-2xs hover:shadow-xl hover:-translate-y-1.5 overflow-hidden"
     >
       {/* 1. Large High-Fashion Product Image */}
       <div className="relative aspect-[3/4] w-full overflow-hidden bg-[#FAF8F5]">
@@ -56,7 +56,7 @@ Please share booking availability, customization options, and delivery timelines
             alt={product.name}
             referrerPolicy="no-referrer"
             onError={() => setImageError(true)}
-            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-104"
+            className="w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-106"
             loading="lazy"
           />
         ) : (
@@ -66,8 +66,11 @@ Please share booking availability, customization options, and delivery timelines
           </div>
         )}
 
+        {/* Subtle Scrim on Hover for Editorial Contrast */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
         {/* Minimal Subtle Status Badge */}
-        <div className="absolute top-3 left-3 text-[9px] tracking-[0.2em] uppercase font-semibold px-2 py-0.5 bg-white/95 backdrop-blur-xs text-[#4A4238] border border-[#E8E2D8] shadow-2xs">
+        <div className="absolute top-3 left-3 text-[9px] tracking-[0.2em] uppercase font-semibold px-2.5 py-0.5 bg-white/95 backdrop-blur-xs text-[#4A4238] border border-[#E8E2D8] shadow-2xs">
           {product.status}
         </div>
 
@@ -83,6 +86,13 @@ Please share booking availability, customization options, and delivery timelines
         >
           <Heart className={`w-3.5 h-3.5 ${inWishlist ? 'fill-current' : ''}`} />
         </button>
+
+        {/* Quick View Floating Prompt on Hover */}
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 z-10 pointer-events-none">
+          <span className="text-[10px] tracking-[0.22em] uppercase font-semibold px-4 py-1.5 bg-white/95 text-[#1A1816] border border-[#B38D4F]/50 shadow-md whitespace-nowrap">
+            View Details & Fabric
+          </span>
+        </div>
       </div>
 
       {/* 2. Clean, Elegant Product Information Module */}

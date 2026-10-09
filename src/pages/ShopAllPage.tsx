@@ -1,60 +1,61 @@
 import React, { useState, useMemo } from 'react';
 import { useShop } from '../context/ShopContext';
-import { PRODUCTS, CATEGORY_THEMES } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
-import { CategoryId } from '../types';
+import { matchProductToCategory } from '../utils/categoryMatching';
 import { Filter, ArrowUpDown, Sparkles, RefreshCw } from 'lucide-react';
 
 export const ShopAllPage: React.FC = () => {
-  const { formatPKR, products } = useShop();
+  const { formatPKR, products, categories } = useShop();
 
-  const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'all'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStitching, setSelectedStitching] = useState<string>('all');
   const [selectedFabric, setSelectedFabric] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'newest'>('featured');
-  const [maxPrice, setMaxPrice] = useState<number>(650000);
+  const [maxPrice, setMaxPrice] = useState<number>(2000000);
 
-  const categoriesList: { id: CategoryId | 'all'; label: string }[] = [
-    { id: 'all', label: 'All Creations' },
-    { id: 'nikah', label: 'Nikah' },
-    { id: 'barat', label: 'Barat' },
-    { id: 'mehndi', label: 'Mehndi' },
-    { id: 'walima', label: 'Walima' },
-    { id: 'sarees', label: 'Sarees' },
-    { id: 'sharara-gharara', label: 'Sharara & Gharara' },
-    { id: 'frocks-maxis', label: 'Frocks & Maxis' },
-    { id: 'party-wear', label: 'Party Wear' },
-  ];
+  const categoriesList = useMemo(() => {
+    return [
+      { id: 'all', label: 'All Creations' },
+      ...categories.map((c) => ({
+        id: c.id,
+        label: c.subCategory || c.name,
+      })),
+    ];
+  }, [categories]);
 
   const uniqueFabrics = useMemo(() => {
     const list = new Set<string>();
     products.forEach((p) => {
-      const f = p.fabric.split('&')[0].trim();
-      list.add(f);
+      if (p.fabric) {
+        const f = p.fabric.split('&')[0].trim();
+        if (f) list.add(f);
+      }
     });
     return Array.from(list);
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter((p) => {
-      if (selectedCategory !== 'all' && p.category !== selectedCategory) return false;
-      if (selectedStitching !== 'all' && p.status !== selectedStitching) return false;
-      if (selectedFabric !== 'all' && !p.fabric.toLowerCase().includes(selectedFabric.toLowerCase())) return false;
-      if (p.price > maxPrice) return false;
-      return true;
-    }).sort((a, b) => {
-      if (sortBy === 'price-asc') return a.price - b.price;
-      if (sortBy === 'price-desc') return b.price - a.price;
-      if (sortBy === 'newest') return (b.isNewArrival ? 1 : 0) - (a.isNewArrival ? 1 : 0);
-      return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
-    });
+    return products
+      .filter((p) => {
+        if (selectedCategory !== 'all' && !matchProductToCategory(p, selectedCategory)) return false;
+        if (selectedStitching !== 'all' && p.status !== selectedStitching) return false;
+        if (selectedFabric !== 'all' && (!p.fabric || !p.fabric.toLowerCase().includes(selectedFabric.toLowerCase()))) return false;
+        if (p.price > maxPrice) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortBy === 'price-asc') return a.price - b.price;
+        if (sortBy === 'price-desc') return b.price - a.price;
+        if (sortBy === 'newest') return (b.isNewArrival ? 1 : 0) - (a.isNewArrival ? 1 : 0);
+        return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
+      });
   }, [products, selectedCategory, selectedStitching, selectedFabric, maxPrice, sortBy]);
 
   const resetFilters = () => {
     setSelectedCategory('all');
     setSelectedStitching('all');
     setSelectedFabric('all');
-    setMaxPrice(650000);
+    setMaxPrice(2000000);
     setSortBy('featured');
   };
 

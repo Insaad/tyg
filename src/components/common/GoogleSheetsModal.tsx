@@ -114,9 +114,10 @@ export const GoogleSheetsModal: React.FC = () => {
   const handlePushAllToSheet = async () => {
     setExportSuccess(false);
     try {
-      await handleExportToConnectedSheet();
+      const target = inputUrl.trim() || undefined;
+      await handleExportToConnectedSheet(target);
       setExportSuccess(true);
-      setTimeout(() => setExportSuccess(false), 4000);
+      setTimeout(() => setExportSuccess(false), 9000);
     } catch {
       // sheetsError handles it
     }
@@ -176,7 +177,175 @@ export const GoogleSheetsModal: React.FC = () => {
             </div>
           )}
 
-          {/* 1. Zero-Login Sync Status Banner */}
+          {/* 1. Primary Action: Push All Products & Headers to Google Sheet */}
+          <div className="p-5 bg-gradient-to-br from-[#FAF8F5] via-white to-emerald-50/50 border-2 border-emerald-600/30 shadow-md space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E2D8] pb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-[#1A1816]">
+                    Push All Products &amp; Collections to Your Google Sheet
+                  </h4>
+                </div>
+                <p className="text-xs text-[#706456] mt-0.5">
+                  Source: <strong>https://haseensofficial.com/</strong> · Auto-creates header row 1 if missing · Pushes subcategories, primary, secondary, 3rd, 4th &amp; all gallery images.
+                </p>
+              </div>
+              <span className="px-2 py-1 text-[10px] uppercase font-bold bg-emerald-100 text-emerald-800 rounded-xs self-start sm:self-auto shrink-0">
+                Auto-Header Enabled
+              </span>
+            </div>
+
+            {/* Target Google Sheet URL Input */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-semibold text-[#1A1816]">
+                <span>Target Google Sheet URL or ID:</span>
+                <a
+                  href="https://sheets.new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-[#9E7B3B] hover:underline flex items-center gap-1 font-normal"
+                >
+                  <span>+ Open blank sheet at sheets.new</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={inputUrl}
+                  onChange={(e) => setInputUrl(e.target.value)}
+                  placeholder={spreadsheetId ? `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit` : "Paste your Google Sheet link or ID here..."}
+                  className="flex-1 px-3 py-2 text-xs bg-white border border-[#D5CDBC] focus:border-emerald-600 focus:outline-hidden text-[#1A1816] font-mono shadow-2xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCatalogSheet}
+                  disabled={isSyncingSheets}
+                  className="px-3.5 py-2 bg-white hover:bg-[#FAF8F5] border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold uppercase tracking-wider transition-colors shrink-0 flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+                  title="Creates a new 'catalog' spreadsheet in your Google Drive pre-filled with all products and categories"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#9E7B3B]" />
+                  <span>Create in Drive</span>
+                </button>
+              </div>
+              <span className="text-[11px] text-[#706456] block">
+                {spreadsheetId ? (
+                  <>Active connected sheet: <strong className="text-[#1A1816] font-mono">{spreadsheetId}</strong>. You can paste a new link above to push to a different sheet.</>
+                ) : (
+                  <>Paste your Google Sheet URL above and click the button below to push all products into it.</>
+                )}
+              </span>
+            </div>
+
+            {/* Big Action Push Button */}
+            <button
+              type="button"
+              onClick={handlePushAllToSheet}
+              disabled={isSyncingSheets}
+              className="w-full py-3.5 px-4 bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2.5 shadow-md disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw className={`w-4 h-4 ${isSyncingSheets ? 'animate-spin' : ''}`} />
+              <span>
+                {isSyncingSheets
+                  ? 'Creating Headers & Writing 200 Products...'
+                  : '⚡ PUSH ALL PRODUCTS & HEADERS TO MY SHEET'}
+              </span>
+            </button>
+
+            {/* Feature Checklist */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#5C5144] pt-1">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Auto-creates missing headers (23 columns for products)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Primary, secondary, 3rd, 4th &amp; full gallery images</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Categories, subcategories &amp; sub-subcategories</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span>Creates both 'Products' &amp; 'Categories' tabs</span>
+              </div>
+            </div>
+
+            {/* Success Banner */}
+            {exportSuccess && (
+              <div className="p-4 bg-emerald-50 border border-emerald-400 text-emerald-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="block text-sm font-bold">Successfully Added to Your Google Sheet!</strong>
+                    <span className="text-emerald-800">
+                      Created headers and pushed all 200 products with subcategories &amp; all images + 14 categories into your sheet tabs ('Products' &amp; 'Categories').
+                    </span>
+                  </div>
+                </div>
+                <a
+                  href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shrink-0 shadow-2xs transition-colors"
+                >
+                  <span>Open in Sheets</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Guaranteed 1-Click Clipboard Copy (Works 100% on any browser without sign-in) */}
+          <div className="p-4 bg-[#FAF8F5] border border-[#E0D8CB] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#9E7B3B]" />
+                <span className="text-xs font-bold text-[#1A1816]">
+                  1-Click Direct Copy with Headers (Works 100% on Any Browser)
+                </span>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-[#9E7B3B]">Zero Sign-In</span>
+            </div>
+            <p className="text-[11px] text-[#706456]">
+              Click copy below, open your Google Sheet, click cell <strong>A1</strong>, and press <strong>Ctrl+V</strong> (or <strong>Cmd+V</strong>). All headers, columns, photos, and prices paste instantly!
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleCopyTsvProducts}
+                className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <div>
+                    <span className="block font-semibold">Copy 200 Products + Headers</span>
+                    <span className="text-[10px] text-[#706456] font-normal">Ready for Cell A1 (23 columns)</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCopied ? 'Copied!' : 'Copy'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyTsvCategories}
+                className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                  <div>
+                    <span className="block font-semibold">Copy 14 Categories + Headers</span>
+                    <span className="text-[10px] text-[#706456] font-normal">Ready for 'Categories' tab Cell A1</span>
+                  </div>
+                </div>
+                <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCatCopied ? 'Copied!' : 'Copy'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Zero-Login Sync Status Banner */}
           <div className="p-4 bg-emerald-50/60 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -199,57 +368,13 @@ export const GoogleSheetsModal: React.FC = () => {
             </button>
           </div>
 
-          {/* 2. Connected Spreadsheet Card & Sheet Input */}
+          {/* 4. Connected Spreadsheet Card */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-widest text-[#9E7B3B] font-semibold">
-                CONNECTED GOOGLE SHEET
-              </span>
-              <span className="text-[11px] text-[#706456]">
-                ID: {spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}
-              </span>
-            </div>
-
-            {/* Change or Connect Custom Google Sheet URL Form */}
-            <form onSubmit={handleSubmitConnect} className="p-3 bg-[#FAF8F5] border border-[#E0D8CB] space-y-2">
-              <label className="block text-xs font-semibold text-[#1A1816]">
-                Connect Your Personal Google Sheet:
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={inputUrl}
-                  onChange={(e) => setInputUrl(e.target.value)}
-                  placeholder="Paste your Google Sheet link or ID here..."
-                  className="flex-1 px-3 py-1.5 text-xs bg-white border border-[#D5CDBC] focus:border-[#9E7B3B] focus:outline-hidden text-[#1A1816] font-mono"
-                />
-                <button
-                  type="submit"
-                  disabled={isSyncingSheets || !inputUrl.trim()}
-                  className="px-3 py-1.5 bg-[#1A1816] hover:bg-[#9E7B3B] disabled:opacity-50 text-white text-xs font-semibold uppercase tracking-wider transition-colors shrink-0"
-                >
-                  Connect Sheet
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreateCatalogSheet}
-                  disabled={isSyncingSheets}
-                  className="px-3 py-1.5 bg-white hover:bg-[#FAF8F5] border border-[#D5CDBC] text-[#1A1816] text-xs font-semibold uppercase tracking-wider transition-colors shrink-0 flex items-center justify-center gap-1"
-                  title="Automatically creates a new 'catalog' spreadsheet in your Google Drive pre-filled with all products and categories"
-                >
-                  <span>+ Create New in Drive</span>
-                </button>
-              </div>
-              <span className="text-[10px] text-[#706456] block">
-                You can create a blank Google Sheet at <strong>sheets.new</strong>, paste the link above, and click <strong>"Push All Products to My Sheet"</strong> below!
-              </span>
-            </form>
-
             <div className="p-4 bg-white border border-[#E0D8CB] space-y-3 shadow-2xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-[#1A1816] block truncate">
-                    Active Catalog Spreadsheet
+                    Active Connected Spreadsheet
                   </span>
                   <a
                     href={`https://docs.google.com/spreadsheets/d/${spreadsheetId || '1efyKfJMggRsC_8vcdpiCCRdI4mMxykEuRJIOUk3iPck'}/edit`}
@@ -298,144 +423,63 @@ export const GoogleSheetsModal: React.FC = () => {
             </div>
           </div>
 
-            {/* Haseens Official 200 Products & 14 Categories Catalog Actions */}
-            <div className="p-4 bg-white border border-[#E8E2D8] space-y-4 shadow-2xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECE6DE] pb-3">
-                <div>
+          {/* 5. Additional Import Methods (CSV & Formula) */}
+          <div className="p-4 bg-white border border-[#E8E2D8] space-y-3 shadow-2xs">
+            {/* Method 2: Download & Import */}
+            <div className="p-3 bg-white border border-[#E0D8CB] space-y-2">
+              <span className="text-xs font-semibold text-[#1A1816] block">
+                Download CSV Files (In Google Sheets: File &gt; Import &gt; Upload)
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={handleDownloadProductsCsv}
+                  className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left cursor-pointer"
+                >
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-xs text-[#1A1816]">
-                      Haseens Official Catalog ({products.length} Products · {categories.length} Collections)
-                    </span>
-                    <span className="px-1.5 py-0.5 text-[9px] uppercase font-bold bg-emerald-100 text-emerald-800 rounded-xs">
-                      READY TO SYNC
-                    </span>
+                    <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>Download catalog_products.csv</span>
                   </div>
-                  <span className="text-[#706456] text-[11px] block mt-0.5">
-                    Pushes all products, categories, sub-categories, primary images, secondary images, and full galleries into your sheet tabs.
-                  </span>
-                </div>
+                  <span className="text-[10px] text-emerald-700 font-bold shrink-0">200 items</span>
+                </button>
 
                 <button
                   type="button"
-                  onClick={handlePushAllToSheet}
-                  disabled={isSyncingSheets}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shrink-0 shadow-2xs disabled:opacity-50 cursor-pointer"
+                  onClick={handleDownloadCategoriesCsv}
+                  className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheets ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingSheets ? 'Writing to Sheet...' : 'Push All Products to My Sheet'}</span>
+                  <div className="flex items-center gap-2">
+                    <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                    <span>Download catalog_categories.csv</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 font-bold shrink-0">14 themes</span>
                 </button>
               </div>
+            </div>
 
-              {exportSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs flex items-center gap-2.5 animate-in fade-in">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <div>
-                    <strong className="block font-semibold">Sync Successful!</strong>
-                    <span>All 200 products &amp; 14 categories with all primary, secondary, and extra images have been written to your Google Sheet tabs ('Products' &amp; 'Categories'). Click "Open in Sheets" above to inspect!</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Method 1: Guaranteed 1-Click Copy & Paste (TSV) */}
-              <div className="p-3.5 bg-[#FAF8F5] border border-[#E0D8CB] space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#1A1816] flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#9E7B3B]" />
-                    <span>Method 1: Direct 1-Click Copy &amp; Paste (Works 100% on any device)</span>
-                  </span>
-                  <span className="text-[10px] uppercase font-semibold text-[#9E7B3B]">Zero Login Required</span>
-                </div>
-                <p className="text-[11px] text-[#706456]">
-                  Click the button below, then open your Google Sheet, click cell <strong>A1</strong>, and press <strong>Ctrl+V</strong> (or <strong>Cmd+V</strong>). All columns, pictures, prices, and specifications paste instantly!
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCopyTsvProducts}
-                    className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <div>
-                        <span className="block font-semibold">Copy 200 Products (Ready for Cell A1)</span>
-                        <span className="text-[10px] text-[#706456] font-normal">Formatted table with all image URLs</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCopied ? 'Copied!' : 'Copy'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleCopyTsvCategories}
-                    className="p-2.5 bg-white hover:bg-emerald-50 border border-[#D5CDBC] hover:border-emerald-600 text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Copy className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <div>
-                        <span className="block font-semibold">Copy 14 Categories (Ready for Cell A1)</span>
-                        <span className="text-[10px] text-[#706456] font-normal">For "Categories" sheet tab</span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">{csvCatCopied ? 'Copied!' : 'Copy'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Method 2: Download & Import */}
-              <div className="p-3 bg-white border border-[#E0D8CB] space-y-2">
-                <span className="text-xs font-semibold text-[#1A1816] block">
-                  Method 2: Download CSV Files (In Google Sheets: File &gt; Import &gt; Upload)
+            {/* Method 3: Formula in Google Sheets */}
+            <div className="p-3 bg-white border border-[#E0D8CB] space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-[#1A1816]">
+                  Live Auto-Fill Formula for Google Sheets
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={handleDownloadProductsCsv}
-                    className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span>Download catalog_products.csv</span>
-                    </div>
-                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">200 items</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleDownloadCategoriesCsv}
-                    className="p-2 bg-[#FAF8F5] hover:bg-white border border-[#D5CDBC] hover:border-[#1A1816] text-[#1A1816] text-xs font-semibold transition-colors flex items-center justify-between shadow-2xs text-left"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Download className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                      <span>Download catalog_categories.csv</span>
-                    </div>
-                    <span className="text-[10px] text-emerald-700 font-bold shrink-0">14 themes</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyImportFormula}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  <span>{formulaCopied ? 'Formula Copied!' : 'Copy Formula'}</span>
+                </button>
               </div>
-
-              {/* Method 3: Formula in Google Sheets */}
-              <div className="p-3 bg-white border border-[#E0D8CB] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#1A1816]">
-                    Method 3: Live Auto-Fill Formula for Google Sheets
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleCopyImportFormula}
-                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>{formulaCopied ? 'Formula Copied!' : 'Copy Formula'}</span>
-                  </button>
-                </div>
-                <p className="text-[11px] text-[#706456]">
-                  Paste this into cell <strong>A1</strong> of your Google Sheet to let Google automatically pull all 200 products:
-                </p>
-                <div className="p-2 bg-[#FAF8F5] border border-[#E8E2D8] font-mono text-[11px] text-[#1A1816] select-all truncate">
-                  =IMPORTDATA("{typeof window !== 'undefined' ? window.location.origin : ''}/catalog_products.csv")
-                </div>
+              <p className="text-[11px] text-[#706456]">
+                Paste this into cell <strong>A1</strong> of your Google Sheet to let Google automatically pull all 200 products:
+              </p>
+              <div className="p-2 bg-[#FAF8F5] border border-[#E8E2D8] font-mono text-[11px] text-[#1A1816] select-all truncate">
+                =IMPORTDATA("{typeof window !== 'undefined' ? window.location.origin : ''}/catalog_products.csv")
               </div>
             </div>
+          </div>
 
           {/* 3. Instructions & Columns Guide */}
           <div className="p-4 bg-[#FAF8F5] border border-[#ECE6DE] space-y-3">

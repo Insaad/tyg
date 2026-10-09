@@ -301,6 +301,13 @@ export const Footer: React.FC = () => {
           <div className="flex items-center gap-6">
             <span>Illustrative Sample Catalogue & Pricing</span>
             <span>·</span>
+            <button
+              onClick={openGoogleSheetsModal}
+              className="hover:text-[#9E7B3B] transition-colors cursor-pointer underline-offset-2 hover:underline"
+            >
+              Admin Sheets Sync
+            </button>
+            <span>·</span>
             <span>Handcrafted in Karachi</span>
             <span>·</span>
             <span>Worldwide Shipping</span>

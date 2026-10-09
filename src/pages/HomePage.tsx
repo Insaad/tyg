@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useShop } from '../context/ShopContext';
 import { PRODUCTS, BOUTIQUE_INFO, TESTIMONIALS, LOOKBOOK_STORIES } from '../data/products';
 import { ProductCard } from '../components/common/ProductCard';
 import { PageRoute } from '../types';
 import { getAssetUrl } from '../utils/assets';
+import { matchProductToCategory } from '../utils/categoryMatching';
 import {
   Calendar,
   Sparkles,
@@ -16,19 +17,27 @@ import {
   MessageCircle,
   ExternalLink,
   ChevronRight,
+  ChevronLeft,
   ShieldCheck,
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const { setCurrentRoute, createWhatsAppLink, products } = useShop();
+  const { setCurrentRoute, createWhatsAppLink, products, categories } = useShop();
 
-  const [activeTab, setActiveTab] = useState<'featured' | 'bestsellers' | 'new-arrivals'>('featured');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const categoryScrollRef = React.useRef<HTMLDivElement>(null);
 
-  const displayedProducts = products.filter((p) => {
-    if (activeTab === 'bestsellers') return p.isBestseller;
-    if (activeTab === 'new-arrivals') return p.isNewArrival;
-    return true;
-  }).slice(0, 16);
+  const scrollCategories = (direction: 'left' | 'right') => {
+    if (categoryScrollRef.current) {
+      const amount = direction === 'left' ? -320 : 320;
+      categoryScrollRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  const displayedProducts = useMemo(() => {
+    if (selectedCategory === 'all') return products.slice(0, 24);
+    return products.filter((p) => matchProductToCategory(p, selectedCategory));
+  }, [products, selectedCategory]);
 
   const occasionCards = [
     {
@@ -127,71 +136,155 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Featured Bridal Catalog */}
-      <section className="py-20 bg-white border-b border-[#ECE6DE]">
+      {/* Haseens Official Style Horizontally Scrollable Categories Bar */}
+      <section className="py-8 sm:py-12 bg-white border-b border-[#ECE6DE] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-6">
-            <div>
-              <span className="text-xs uppercase tracking-[0.3em] text-[#9E7B3B] font-semibold block mb-2">
-                ATELIER MASTERPIECES
-              </span>
-              <h2
-                className="text-3xl sm:text-4xl font-display text-[#1A1816]"
-                style={{ fontFamily: 'Cormorant Garamond, Georgia, serif' }}
-              >
-                Featured Bridal & Formal Ensembles
-              </h2>
-            </div>
-
-            {/* Interactive Segmented Filter Control */}
-            <div className="flex items-center p-1 bg-[#FAF8F5] border border-[#E8E2D8]">
-              <button
-                onClick={() => setActiveTab('featured')}
-                className={`px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 ${
-                  activeTab === 'featured'
-                    ? 'bg-[#1A1816] text-white shadow-xs'
-                    : 'text-[#7A6F62] hover:text-[#1A1816] hover:bg-white/60'
-                }`}
-              >
-                Featured
-              </button>
-              <button
-                onClick={() => setActiveTab('bestsellers')}
-                className={`px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 ${
-                  activeTab === 'bestsellers'
-                    ? 'bg-[#1A1816] text-white shadow-xs'
-                    : 'text-[#7A6F62] hover:text-[#1A1816] hover:bg-white/60'
-                }`}
-              >
-                Bestsellers
-              </button>
-              <button
-                onClick={() => setActiveTab('new-arrivals')}
-                className={`px-5 py-2.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition-all duration-300 ${
-                  activeTab === 'new-arrivals'
-                    ? 'bg-[#1A1816] text-white shadow-xs'
-                    : 'text-[#7A6F62] hover:text-[#1A1816] hover:bg-white/60'
-                }`}
-              >
-                New Arrivals
-              </button>
-            </div>
-          </div>
-
-          {/* Product Grid with Direct WhatsApp Order Buttons */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {displayedProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-
-          <div className="mt-14 text-center">
+          <div className="relative">
+            {/* Scroll Left Button */}
             <button
-              onClick={() => setCurrentRoute('shop-all')}
-              className="px-9 py-4 bg-[#1A1816] hover:bg-[#9E7B3B] text-white text-[11px] uppercase tracking-[0.22em] font-semibold transition-all duration-300 shadow-xs hover:shadow-md active:scale-98"
+              onClick={() => scrollCategories('left')}
+              aria-label="Scroll left"
+              className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-[#D5CDBC] text-[#1A1816] hover:bg-[#9E7B3B] hover:text-white hover:border-[#9E7B3B] shadow-md items-center justify-center transition-all cursor-pointer"
             >
-              Explore Full Bridal Catalog ({products.length} Outfits) →
+              <ChevronLeft className="w-5 h-5" />
             </button>
+
+            {/* Horizontal Scroll Track of All Categories */}
+            <div
+              ref={categoryScrollRef}
+              className="flex items-start gap-4 sm:gap-6 md:gap-7 overflow-x-auto scrollbar-none scroll-smooth pb-3 px-2"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {/* "All" Option */}
+              <button
+                onClick={() => {
+                  setSelectedCategory('all');
+                }}
+                className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer focus:outline-hidden"
+              >
+                <div
+                  className={`w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full overflow-hidden p-1 transition-all duration-300 ${
+                    selectedCategory === 'all'
+                      ? 'ring-2 ring-[#9E7B3B] ring-offset-2 scale-105'
+                      : 'border-2 border-[#E0D8CB] group-hover:border-[#9E7B3B] group-hover:scale-105'
+                  }`}
+                >
+                  <div className="w-full h-full rounded-full bg-gradient-to-br from-[#1A1816] via-[#2D261E] to-[#9E7B3B] flex flex-col items-center justify-center text-white p-2">
+                    <Sparkles className="w-5 h-5 text-[#D4AF37] mb-1" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest">ALL</span>
+                  </div>
+                </div>
+                <div className="text-center w-20 sm:w-24 md:w-26">
+                  <span
+                    className={`text-xs font-semibold block truncate transition-colors ${
+                      selectedCategory === 'all' ? 'text-[#9E7B3B]' : 'text-[#1A1816] group-hover:text-[#9E7B3B]'
+                    }`}
+                  >
+                    All Products
+                  </span>
+                  <span className="text-[10px] text-[#9E7B3B] font-serif block truncate">تمام ملبوسات</span>
+                </div>
+              </button>
+
+              {/* All categories with icon/image from haseensofficial.com */}
+              {categories.map((cat) => {
+                const isSelected = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setSelectedCategory(cat.id);
+                    }}
+                    className="flex flex-col items-center gap-2 shrink-0 group cursor-pointer focus:outline-hidden"
+                    title={cat.name}
+                  >
+                    <div
+                      className={`w-20 h-20 sm:w-24 sm:h-24 md:w-26 md:h-26 rounded-full overflow-hidden p-0.5 transition-all duration-300 ${
+                        isSelected
+                          ? 'ring-2 ring-[#9E7B3B] ring-offset-2 scale-105'
+                          : 'border-2 border-[#E0D8CB] group-hover:border-[#9E7B3B] group-hover:scale-105'
+                      }`}
+                    >
+                      <img
+                        src={cat.heroImage}
+                        alt={cat.name}
+                        className="w-full h-full object-cover object-top rounded-full transition-transform duration-500 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="text-center w-20 sm:w-24 md:w-26">
+                      <span
+                        className={`text-xs font-semibold block truncate transition-colors ${
+                          isSelected ? 'text-[#9E7B3B]' : 'text-[#1A1816] group-hover:text-[#9E7B3B]'
+                        }`}
+                      >
+                        {cat.subCategory || cat.name}
+                      </span>
+                      <span className="text-[10px] text-[#9E7B3B] font-serif block truncate">
+                        {cat.urduName}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => scrollCategories('right')}
+              aria-label="Scroll right"
+              className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/95 border border-[#D5CDBC] text-[#1A1816] hover:bg-[#9E7B3B] hover:text-white hover:border-[#9E7B3B] shadow-md items-center justify-center transition-all cursor-pointer"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Product Grid directly beneath the categories */}
+          <div className="mt-10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#ECE6DE] pb-3 mb-6">
+              <div>
+                <span className="text-xs font-semibold text-[#1A1816] uppercase tracking-wider">
+                  {selectedCategory === 'all'
+                    ? 'All Bridal & Festive Ensembles'
+                    : (categories.find((c) => c.id === selectedCategory)?.name || selectedCategory)}
+                </span>
+                <span className="text-[11px] text-[#706456] block">
+                  Showing {displayedProducts.length} pieces
+                </span>
+              </div>
+              {selectedCategory !== 'all' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setSelectedCategory('all')}
+                    className="text-xs text-[#706456] hover:text-[#1A1816] underline underline-offset-2 cursor-pointer"
+                  >
+                    Show All
+                  </button>
+                  <button
+                    onClick={() => setCurrentRoute(selectedCategory as PageRoute)}
+                    className="text-xs font-semibold text-[#9E7B3B] hover:text-[#1A1816] flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>View Dedicated Collection Page</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {displayedProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+
+            <div className="mt-12 text-center">
+              <button
+                onClick={() => setCurrentRoute('shop-all')}
+                className="px-9 py-4 bg-[#1A1816] hover:bg-[#9E7B3B] text-white text-[11px] uppercase tracking-[0.22em] font-semibold transition-all duration-300 shadow-xs hover:shadow-md active:scale-98 cursor-pointer"
+              >
+                Explore Full Bridal Catalog ({products.length} Outfits) →
+              </button>
+            </div>
           </div>
         </div>
       </section>

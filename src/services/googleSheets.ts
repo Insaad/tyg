@@ -770,6 +770,7 @@ export const populateCatalogToSpreadsheet = async (
   let targetProductTab = 'Products';
   let targetCategoryTab = 'Categories';
   let existingTitles: string[] = [];
+  let hasCategoriesTab = false;
 
   try {
     const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanId}`, {
@@ -850,6 +851,7 @@ export const populateCatalogToSpreadsheet = async (
 
     // Check Categories tab
     if (!existingTitles.includes('Categories')) {
+      hasCategoriesTab = true;
       requests.push({
         addSheet: {
           properties: {
@@ -863,6 +865,7 @@ export const populateCatalogToSpreadsheet = async (
         },
       });
     } else {
+      hasCategoriesTab = true;
       const catSheet = existingSheets.find((s: any) => s.properties?.title === 'Categories');
       if (catSheet) {
         const currentRows = catSheet.properties?.gridProperties?.rowCount || 50;
@@ -907,27 +910,75 @@ export const populateCatalogToSpreadsheet = async (
     console.warn('Metadata verification warning:', err);
   }
 
-  // 4. Write Products tab directly
-  const writeProductsRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(
-      targetProductTab + '!A1'
-    )}?valueInputOption=USER_ENTERED`,
+  // 4. Populate Products & Categories with header creation and batch update
+  const batchData = [
     {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        values: allProductValues,
-      }),
-    }
-  );
+      range: `${targetProductTab}!A1:W${allProductValues.length}`,
+      majorDimension: 'ROWS',
+      values: allProductValues,
+    },
+  ];
 
-  if (!writeProductsRes.ok) {
-    // If targetProductTab failed (e.g. rename was skipped), try writing to the first sheet title
-    const firstTitle = existingTitles[0] || 'Sheet1';
-    if (targetProductTab !== firstTitle) {
+  if (hasCategoriesTab || existingTitles.includes('Categories')) {
+    batchData.push({
+      range: `${targetCategoryTab}!A1:I${allCategoryValues.length}`,
+      majorDimension: 'ROWS',
+      values: allCategoryValues,
+    });
+  }
+
+  let batchSucceeded = false;
+  try {
+    const batchValuesRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values:batchUpdate`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          valueInputOption: 'USER_ENTERED',
+          data: batchData,
+        }),
+      }
+    );
+
+    if (batchValuesRes.ok) {
+      batchSucceeded = true;
+    } else {
+      console.warn('values:batchUpdate warning:', await batchValuesRes.text());
+    }
+  } catch (batchErr) {
+    console.warn('values:batchUpdate error, attempting fallback:', batchErr);
+  }
+
+  if (!batchSucceeded) {
+    // Fallback: Write Products tab individually with full ValueRange payload
+    let prodWritten = false;
+    const writeProductsRes = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(
+        targetProductTab + '!A1'
+      )}?valueInputOption=USER_ENTERED`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          range: `${targetProductTab}!A1`,
+          majorDimension: 'ROWS',
+          values: allProductValues,
+        }),
+      }
+    );
+
+    if (writeProductsRes.ok) {
+      prodWritten = true;
+    } else {
+      // If targetProductTab failed, fallback to the first sheet title (e.g. Sheet1)
+      const firstTitle = existingTitles[0] || 'Sheet1';
       const fallbackRes = await fetch(
         `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(
           firstTitle + '!A1'
@@ -939,42 +990,42 @@ export const populateCatalogToSpreadsheet = async (
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            range: `${firstTitle}!A1`,
+            majorDimension: 'ROWS',
             values: allProductValues,
           }),
         }
       );
-      if (!fallbackRes.ok) {
+      if (fallbackRes.ok) {
+        prodWritten = true;
+      } else {
         const errText = await fallbackRes.text();
         throw new Error(`Failed to write products to sheet: ${errText}`);
       }
-    } else {
-      const errText = await writeProductsRes.text();
-      throw new Error(`Failed to write products to sheet: ${errText}`);
     }
-  }
 
-  // 5. Write Categories tab directly
-  try {
-    const writeCategoriesRes = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(
-        targetCategoryTab + '!A1'
-      )}?valueInputOption=USER_ENTERED`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          values: allCategoryValues,
-        }),
-      }
-    );
-    if (!writeCategoriesRes.ok) {
-      console.warn('Categories tab write warning:', await writeCategoriesRes.text());
+    // Also write Categories tab if possible
+    try {
+      await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(
+          targetCategoryTab + '!A1'
+        )}?valueInputOption=USER_ENTERED`,
+        {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            range: `${targetCategoryTab}!A1`,
+            majorDimension: 'ROWS',
+            values: allCategoryValues,
+          }),
+        }
+      );
+    } catch (catErr) {
+      console.warn('Categories tab write fallback error:', catErr);
     }
-  } catch (catErr) {
-    console.warn('Categories tab write error:', catErr);
   }
 
   return {

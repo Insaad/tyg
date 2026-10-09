@@ -85,7 +85,7 @@ interface ShopContextType {
   handleGoogleSignIn: () => Promise<void>;
   handleGoogleLogout: () => Promise<void>;
   handleCreateCatalogSheet: () => Promise<void>;
-  handleExportToConnectedSheet: () => Promise<void>;
+  handleExportToConnectedSheet: (overrideTargetIdOrUrl?: string) => Promise<any>;
   handleSyncFromSheets: () => Promise<void>;
   handleConnectExistingSheet: (urlOrId: string) => Promise<void>;
 }
@@ -583,10 +583,30 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const handleExportToConnectedSheet = async () => {
+  const handleExportToConnectedSheet = async (overrideTargetIdOrUrl?: string) => {
     setIsSyncingSheets(true);
     setSheetsError(null);
     try {
+      let targetId = overrideTargetIdOrUrl
+        ? extractSpreadsheetId(overrideTargetIdOrUrl)
+        : (spreadsheetId || ADMIN_CONFIG.catalogSpreadsheetId);
+
+      if (overrideTargetIdOrUrl) {
+        const cleanId = extractSpreadsheetId(overrideTargetIdOrUrl);
+        if (cleanId) {
+          targetId = cleanId;
+          const url = `https://docs.google.com/spreadsheets/d/${cleanId}/edit`;
+          setSpreadsheetId(cleanId);
+          setSpreadsheetUrl(url);
+          localStorage.setItem('ashrafi_sheet_id', cleanId);
+          localStorage.setItem('ashrafi_sheet_url', url);
+        }
+      }
+
+      if (!targetId) {
+        throw new Error('Please enter your Google Sheet link or ID first, or click "+ Create New in Drive".');
+      }
+
       let token = await getAccessToken();
       if (!token) {
         const signinRes = await googleSignIn();
@@ -598,10 +618,7 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setGoogleUser(signinRes.user);
         token = signinRes.accessToken;
       }
-      const targetId = spreadsheetId || ADMIN_CONFIG.catalogSpreadsheetId;
-      if (!targetId) {
-        throw new Error('No Google Sheet connected. Connect a sheet first.');
-      }
+
       // Write the full 200 products list and categories
       const res = await populateCatalogToSpreadsheet(token, targetId, PRODUCTS, dynamicCategories);
       setProducts(PRODUCTS);

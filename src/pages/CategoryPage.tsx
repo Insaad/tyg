@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useShop } from '../context/ShopContext';
-import { CATEGORY_THEMES, PRODUCTS, BOUTIQUE_INFO } from '../data/products';
+import { BOUTIQUE_INFO } from '../data/products';
 import { CategoryId, PageRoute } from '../types';
 import { ProductCard } from '../components/common/ProductCard';
 import { getAssetUrl } from '../utils/assets';
+import { matchProductToCategory, resolveCategoryTheme } from '../utils/categoryMatching';
 import {
   Filter,
   ArrowUpDown,
@@ -18,9 +19,11 @@ interface CategoryPageProps {
 }
 
 export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId }) => {
-  const { setCurrentRoute, openAppointmentModal, createWhatsAppLink, products } = useShop();
+  const { setCurrentRoute, openAppointmentModal, createWhatsAppLink, products, categories } = useShop();
 
-  const theme = CATEGORY_THEMES[categoryId] || CATEGORY_THEMES['nikah'];
+  const theme = useMemo(() => {
+    return resolveCategoryTheme(categoryId, categories);
+  }, [categoryId, categories]);
 
   // Filters & Sorting state
   const [selectedFabric, setSelectedFabric] = useState<string>('all');
@@ -28,16 +31,18 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId }) => {
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'newest'>('featured');
   const [priceMax, setPriceMax] = useState<number>(700000);
 
-  // Available fabrics in this category
+  // Available products in this category using universal matcher
   const categoryProducts = useMemo(() => {
-    return products.filter((p) => p.category === categoryId);
-  }, [products, categoryId]);
+    return products.filter((p) => matchProductToCategory(p, categoryId, theme));
+  }, [products, categoryId, theme]);
 
   const uniqueFabrics = useMemo(() => {
     const set = new Set<string>();
     categoryProducts.forEach((p) => {
-      const mainFabric = p.fabric.split('&')[0].trim();
-      set.add(mainFabric);
+      if (p.fabric) {
+        const mainFabric = p.fabric.split('&')[0].trim();
+        if (mainFabric) set.add(mainFabric);
+      }
     });
     return Array.from(set);
   }, [categoryProducts]);
@@ -46,7 +51,7 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId }) => {
   const filteredProducts = useMemo(() => {
     return categoryProducts
       .filter((p) => {
-        if (selectedFabric !== 'all' && !p.fabric.toLowerCase().includes(selectedFabric.toLowerCase())) {
+        if (selectedFabric !== 'all' && (!p.fabric || !p.fabric.toLowerCase().includes(selectedFabric.toLowerCase()))) {
           return false;
         }
         if (selectedStitching !== 'all' && p.status !== selectedStitching) {
@@ -66,7 +71,9 @@ export const CategoryPage: React.FC<CategoryPageProps> = ({ categoryId }) => {
   }, [categoryProducts, selectedFabric, selectedStitching, sortBy, priceMax]);
 
   // Related collections
-  const otherCategories = Object.values(CATEGORY_THEMES).filter((c) => c.id !== categoryId).slice(0, 3);
+  const otherCategories = useMemo(() => {
+    return categories.filter((c) => c.id !== categoryId).slice(0, 4);
+  }, [categories, categoryId]);
 
   const handleWhatsAppConsultation = () => {
     const msg = `As-salamu alaykum Ashrafi Bridal Studio! I am exploring your *${theme.name}* and would like to inquire about bridal orders, customization, and appointments.`;

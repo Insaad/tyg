@@ -5,21 +5,24 @@ import { getAssetUrl } from '../../utils/assets';
 import { X, Search as SearchIcon, ArrowRight } from 'lucide-react';
 
 export const SearchModal: React.FC = () => {
-  const { isSearchOpen, closeSearchModal, openProductModal, formatPKR } = useShop();
+  const { isSearchOpen, closeSearchModal, openProductModal, formatPKR, products } = useShop();
   const [query, setQuery] = useState('');
 
   const filtered = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
-    return PRODUCTS.filter(
+    return products.filter(
       (p) =>
-        p.name.toLowerCase().includes(q) ||
-        p.categoryName.toLowerCase().includes(q) ||
-        p.fabric.toLowerCase().includes(q) ||
-        p.embroidery.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
+        (p.name && p.name.toLowerCase().includes(q)) ||
+        (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
+        (p.subCategory && p.subCategory.toLowerCase().includes(q)) ||
+        (p.subSubCategory && p.subSubCategory.toLowerCase().includes(q)) ||
+        (p.category && p.category.toLowerCase().includes(q)) ||
+        (p.fabric && p.fabric.toLowerCase().includes(q)) ||
+        (p.embroidery && p.embroidery.toLowerCase().includes(q)) ||
+        (p.description && p.description.toLowerCase().includes(q))
     );
-  }, [query]);
+  }, [products, query]);
 
   if (!isSearchOpen) return null;
 

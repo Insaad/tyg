@@ -23,6 +23,7 @@ export const Header: React.FC = () => {
     openSearchModal,
     categories,
     createWhatsAppLink,
+    openGoogleSheetsModal,
   } = useShop();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -235,6 +236,18 @@ export const Header: React.FC = () => {
                     <span>Call: {BOUTIQUE_INFO.phone}</span>
                   </div>
                 </div>
+
+                {/* Admin Google Sheets Sync Button */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openGoogleSheetsModal();
+                  }}
+                  className="w-full py-2.5 px-3 bg-white hover:bg-[#FAF8F5] border border-[#D5CDBC] hover:border-[#9E7B3B] text-[#1A1816] hover:text-[#9E7B3B] text-xs font-semibold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
+                >
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-700" />
+                  <span>Admin Google Sheet Catalog</span>
+                </button>
               </div>
             </div>
 
